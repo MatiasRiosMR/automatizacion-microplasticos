@@ -33,10 +33,9 @@ Registro cronológico de decisiones y avances. Entradas nuevas arriba.
 
 ### Convenciones de git  ✔
 
-- `.claude/settings.json` con `attribution.commit=""` y `attribution.pr=""`.
-- `CLAUDE.md` con la instrucción explícita de no agregar `Co-Authored-By` / `Generated
-  with Claude Code`.
-- Pendiente: commit de prueba + `git log -1` para verificar (se hace al cerrar esta tanda).
+- Conventional Commits (`feat`, `fix`, `docs`, `test`, `chore`).
+- Historial a nombre del autor humano (`matiasr <matijr.mr@gmail.com>`), sin líneas de
+  co-autoría automáticas.
 
 ### Fase 1 — Datos sintéticos + clasificador base  ✔
 

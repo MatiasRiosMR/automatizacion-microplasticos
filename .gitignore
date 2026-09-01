@@ -37,7 +37,3 @@ ejemplos/salida_demo/
 .vscode/
 .idea/
 .DS_Store
-
-# Plan de trabajo interno (no publicar)
-prompt_claude_code_plan_de_trabajo.md
-CLAUDE.md
