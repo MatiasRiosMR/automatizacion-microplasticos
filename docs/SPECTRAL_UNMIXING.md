@@ -5,6 +5,20 @@ unmixing* disponible (plugin "Spectral Unmixing", estilo ZEN) anda mal —muy se
 ruido, se rompe con más de 3-4 componentes solapados y no maneja bien la autofluorescencia
 como componente desconocido—.
 
+## Respuesta breve para el equipo (napari vs Fiji)
+
+> Sobre el *unmixing* de los λ-stacks: mejor no repetir Fiji. El *linear unmixing* clásico
+> va banda por banda, es sensible al ruido y falla con espectros muy solapados o si no
+> medís todos los componentes.
+>
+> La alternativa es el **unmixing por phasores**, ya en `phasorpy` (la librería que vamos
+> a usar) y accesible desde `napari-phasors`: es *model-free*, robusto al ruido y **permite
+> tratar la autofluorescencia como componente "desconocido"** sin medirla (Vitrani &
+> Cutrale 2022). Encima trabaja en el mismo espacio donde vamos a clasificar los polímeros.
+>
+> Propuesta: sumar un paso de unmixing por phasores antes de clasificar en las muestras
+> con autofluorescencia.
+
 ## TL;DR
 
 **Sí, hay una opción claramente mejor y encima está alineada con este proyecto:
