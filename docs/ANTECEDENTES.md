@@ -58,7 +58,8 @@ calibrados solo con polímero virgen.
 **Influencia:** obliga a declarar explícitamente en el diseño (Fase 5) si la calibración
 usa solo polímero virgen —limitación declarada— o suma un set de muestras degradadas
 artificialmente. El clasificador expone un parámetro de tolerancia de cluster
-(`umbral_no_clasificable`) pensado para absorber la deriva por envejecimiento.
+(`confianza`, nivel de confianza del umbral chi²) pensado para absorber la deriva por
+envejecimiento.
 
 ## 6. Park et al. (2020)
 

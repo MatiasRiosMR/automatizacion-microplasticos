@@ -20,7 +20,7 @@ LAMAE/LaSBI).
 | Fase | Descripción | Estado |
 |---|---|---|
 | 0 | Diseño y evaluación de dependencias | ✔ ([`docs/FASE_0_EVALUACION.md`](docs/FASE_0_EVALUACION.md)) |
-| 1 | Datos sintéticos + clasificador base (`calibracion`, `clasificador`, `metricas`) | ✔ — 18 tests en verde |
+| 1 | Datos sintéticos + clasificador base (`calibracion`, `clasificador`, `metricas`) | ✔ — 27 tests en verde; resultados en [`docs/RESULTADOS_FASE1.md`](docs/RESULTADOS_FASE1.md) |
 | 2 | Segmentación (`segmentacion`, `features`) | pendiente |
 | 3 | Pipeline completo + reportes + CLI | pendiente |
 | 4 | Integración napari | pendiente |
@@ -70,7 +70,7 @@ from datos_sinteticos import generar_calibracion, generar_particulas
 df = generar_calibracion("flim", n_por_polimero=60)
 cal = Calibracion.desde_dataframe(df, columnas=["g_flim", "s_flim"])
 
-clf = ClasificadorPhasor(cal, estrategia="centroide", umbral_no_clasificable=3.0).entrenar()
+clf = ClasificadorPhasor(cal, estrategia="centroide", confianza=0.99).entrenar()
 
 X, y = generar_particulas("flim", n_por_polimero=40, n_no_clasificables=60)
 pred = clf.predecir(X)
@@ -83,6 +83,7 @@ print(evaluar_clasificacion(y, pred).resumen())
 - [`docs/ANTECEDENTES.md`](docs/ANTECEDENTES.md) — las 6 referencias y su influencia de diseño.
 - [`docs/FASE_0_EVALUACION.md`](docs/FASE_0_EVALUACION.md) — evaluación de `phasorpy` / `napari-phasors`.
 - [`docs/PIPELINE.md`](docs/PIPELINE.md) — flujo de datos y estado por etapa.
+- [`docs/RESULTADOS_FASE1.md`](docs/RESULTADOS_FASE1.md) — prueba del clasificador sobre datos sintéticos.
 - [`docs/FORMATO_DATOS.md`](docs/FORMATO_DATOS.md) — formatos de entrada/salida.
 - [`docs/PREGUNTAS_DATOS.md`](docs/PREGUNTAS_DATOS.md) — pendientes con el equipo.
 - [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md) — instalación y uso.

@@ -57,6 +57,25 @@ Registro cronológico de decisiones y avances. Entradas nuevas arriba.
   con < 0.1 de falsos "no clasificable", orientación de la matriz de confusión, exclusión
   opcional de `no_clasificable` de las métricas macro, y que la fusión 4D no empeora.
 
+### Prueba end-to-end sobre datos sintéticos  ✔
+
+- `ejemplos/demo_fase1.py`: corre las 3 estrategias × 3 modalidades y vuelca reporte a
+  `ejemplos/salida_demo/`. Resultados en `docs/RESULTADOS_FASE1.md`.
+- Al probar salió a la luz que un umbral fijo en σ **no** funciona entre estrategias ni
+  dimensiones (KNN nunca rechazaba; la fusión 4D rechazaba de más). Se rediseñó la regla
+  de "no clasificable":
+  - Parámetro `confianza` (nivel de confianza, def. 0.99) en vez de `umbral_no_clasificable`.
+  - centroide/gmm: umbral `chi2.ppf(confianza, df=n_features)` — consciente de la dimensión.
+  - gmm ahora usa sus covarianzas ajustadas (antes era idéntico a centroide).
+  - knn: umbral = cuantil `confianza` de las distancias intra-clase de la calibración × 1.5.
+  - `score` devuelto = cociente score/umbral (>1 ⇒ rechazo), comparable entre estrategias.
+- **Resultado clave**: `fusion + knn` → exactitud 0,987, F1 polímeros 0,990, rechazo de
+  materia orgánica 0,975, falsos "no clasificable" 0,007. La fusión supera a cualquier
+  modalidad sola → evidencia sintética de la tesis del proyecto.
+- **Hallazgo para Fase 3**: el rechazo paramétrico (centroide/gmm) es sensible al
+  desajuste de ruido calibración↔muestra; el de knn es robusto. Ver RESULTADOS_FASE1 §3.
+- 27 tests en verde.
+
 ### Próximo
 
 - Confirmar con el equipo las respuestas de `docs/PREGUNTAS_DATOS.md`.

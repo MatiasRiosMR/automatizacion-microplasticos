@@ -49,8 +49,10 @@ flowchart TD
 ## Regla de "no clasificable" (detalle)
 
 Ver docstring de `clasificador.py`. Resumen: una partícula queda `no_clasificable` cuando
-su distancia de Mahalanobis al centroide de polímero más cercano supera
-`umbral_no_clasificable` (por defecto 3.0 σ). Es la barrera contra falsos positivos por
-materia orgánica fluorescente (muestras ambientales) y autofluorescencia celular
-(monocitos / neutrófilos). El umbral se calibra con la dispersión de los clusters de
-referencia y, eventualmente, con la deriva por envejecimiento (Meyers et al. 2024).
+su distancia de Mahalanobis al cuadrado al cluster de polímero más cercano supera
+`chi2.ppf(confianza, df=n_features)` (con `confianza=0.99` por defecto). El umbral es
+**consciente de la dimensión** (2 features para una modalidad, 4 para la fusión
+FLIM+espectral), a diferencia de un umbral fijo en σ. Es la barrera contra falsos
+positivos por materia orgánica fluorescente (muestras ambientales) y autofluorescencia
+celular (monocitos / neutrófilos), y absorbe la deriva por envejecimiento
+(Meyers et al. 2024) al bajar `confianza`.

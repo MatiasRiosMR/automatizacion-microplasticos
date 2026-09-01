@@ -17,23 +17,44 @@ def _calibracion(modalidad="flim", **kw):
 
 
 @pytest.mark.parametrize("estrategia", ["centroide", "knn", "gmm"])
-def test_clasifica_polimeros_conocidos(estrategia):
-    cal, df = _calibracion("flim", n_por_polimero=80, semilla=0)
-    clf = ClasificadorPhasor(cal, estrategia=estrategia, umbral_no_clasificable=None)
+@pytest.mark.parametrize("modalidad", ["espectral", "fusion"])
+def test_clasifica_polimeros_conocidos(estrategia, modalidad):
+    cal, df = _calibracion(modalidad, n_por_polimero=80, semilla=0)
+    from datos_sinteticos import _columnas
+
+    clf = ClasificadorPhasor(cal, estrategia=estrategia, confianza=None)
+    if estrategia == "knn":
+        clf.entrenar(df[_columnas(modalidad)].to_numpy(), df["polimero"].to_numpy())
+    else:
+        clf.entrenar()
+
+    X, y = generar_particulas(modalidad, n_por_polimero=50, n_no_clasificables=0, semilla=5)
+    exactitud = (clf.predecir(X) == y).mean()
+    assert exactitud > 0.9
+
+
+def test_flim_solo_tiene_pares_solapados_que_la_fusion_resuelve():
+    # FLIM-only: PVC/PET y LDPE/HDPE tienen lifetimes cercanos y se confunden.
+    # La fusión con la modalidad espectral debe recuperar esa separación.
+    exact = {}
+    for modalidad in ("flim", "fusion"):
+        cal, _ = _calibracion(modalidad, n_por_polimero=80, semilla=0)
+        clf = ClasificadorPhasor(cal, confianza=None).entrenar()
+        from datos_sinteticos import _columnas  # noqa: F401
+
+        X, y = generar_particulas(modalidad, n_por_polimero=50, n_no_clasificables=0, semilla=5)
+        exact[modalidad] = (clf.predecir(X) == y).mean()
+    assert exact["fusion"] >= exact["flim"]
+
+
+@pytest.mark.parametrize("estrategia", ["centroide", "knn", "gmm"])
+def test_no_clasificable_rechaza_materia_organica(estrategia):
+    cal, df = _calibracion("flim", n_por_polimero=80)
+    clf = ClasificadorPhasor(cal, estrategia=estrategia, confianza=0.99)
     if estrategia == "knn":
         clf.entrenar(df[["g_flim", "s_flim"]].to_numpy(), df["polimero"].to_numpy())
     else:
         clf.entrenar()
-
-    X, y = generar_particulas("flim", n_por_polimero=50, n_no_clasificables=0, semilla=5)
-    pred = clf.predecir(X)
-    exactitud = (pred == y).mean()
-    assert exactitud > 0.9
-
-
-def test_no_clasificable_rechaza_materia_organica():
-    cal, _ = _calibracion("flim", n_por_polimero=80)
-    clf = ClasificadorPhasor(cal, estrategia="centroide", umbral_no_clasificable=3.0).entrenar()
 
     X, y = generar_particulas("flim", n_por_polimero=40, n_no_clasificables=80, semilla=7)
     pred = clf.predecir(X)
@@ -45,11 +66,20 @@ def test_no_clasificable_rechaza_materia_organica():
     assert (pred[~es_organico] == NO_CLASIFICABLE).mean() < 0.1
 
 
-def test_umbral_none_no_rechaza_nada():
+def test_confianza_none_no_rechaza_nada():
     cal, _ = _calibracion("flim")
-    clf = ClasificadorPhasor(cal, umbral_no_clasificable=None).entrenar()
+    clf = ClasificadorPhasor(cal, confianza=None).entrenar()
     X, _ = generar_particulas("flim", n_no_clasificables=50)
     assert NO_CLASIFICABLE not in set(clf.predecir(X))
+
+
+def test_umbral_dimension_aware():
+    # El umbral de Mahalanobis² debe crecer con la dimensión (chi² con más grados de libertad).
+    cal2, _ = _calibracion("flim")
+    cal4, _ = _calibracion("fusion")
+    u2 = ClasificadorPhasor(cal2, confianza=0.99).umbral_mahalanobis2_
+    u4 = ClasificadorPhasor(cal4, confianza=0.99).umbral_mahalanobis2_
+    assert u4 > u2
 
 
 def test_score_crece_con_la_distancia():
@@ -73,7 +103,7 @@ def test_fusion_mejora_o_iguala_a_una_sola_modalidad():
     resultados = {}
     for modalidad in ("flim", "espectral", "fusion"):
         cal, _ = _calibracion(modalidad, n_por_polimero=80, semilla=0)
-        clf = ClasificadorPhasor(cal, umbral_no_clasificable=None).entrenar()
+        clf = ClasificadorPhasor(cal, confianza=None).entrenar()
         X, y = generar_particulas(modalidad, n_por_polimero=60, n_no_clasificables=0, semilla=9)
         resultados[modalidad] = (clf.predecir(X) == y).mean()
     assert resultados["fusion"] >= max(resultados["flim"], resultados["espectral"]) - 0.02

@@ -27,7 +27,7 @@ cal = Calibracion.cargar_phasores_csv(
 )
 
 # 2. Clasificador
-clf = ClasificadorPhasor(cal, estrategia="centroide", umbral_no_clasificable=3.0)
+clf = ClasificadorPhasor(cal, estrategia="centroide", confianza=0.99)
 clf.entrenar()
 
 # 3. Predicción sobre partículas nuevas (coordenadas de phasor por ROI)
@@ -51,9 +51,9 @@ napari-mp-classifier classify muestra.tif --calibracion calibracion.csv --salida
 
 ## ¿Cuándo una partícula queda "no clasificable"?
 
-Cuando su distancia al cluster de polímero más cercano supera el umbral
-(`umbral_no_clasificable`, por defecto 3 σ de Mahalanobis). Es el mecanismo para no
-asignar polímero a materia orgánica fluorescente (muestras ambientales) ni a
-autofluorescencia celular (monocitos / neutrófilos). Subir el umbral → menos rechazos,
-más riesgo de falso positivo; bajarlo → más rechazos, más riesgo de perder polímero real
-o envejecido.
+Cuando su distancia al cluster de polímero más cercano supera el umbral estadístico
+`chi2.ppf(confianza, df=n_features)` (con `confianza=0.99` por defecto). Es el mecanismo
+para no asignar polímero a materia orgánica fluorescente (muestras ambientales) ni a
+autofluorescencia celular (monocitos / neutrófilos). Subir `confianza` → menos rechazos,
+más riesgo de falso positivo; bajarla → más rechazos, más riesgo de perder polímero real
+o envejecido. `confianza=None` desactiva el rechazo.
