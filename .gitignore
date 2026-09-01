@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Entornos
+.venv/
+venv/
+env/
+
+# Datos crudos pesados (no versionar imágenes de microscopía)
+datos/calibracion/*
+datos/muestras/*
+!datos/calibracion/.gitkeep
+!datos/muestras/.gitkeep
+*.sdt
+*.czi
+*.ptu
+*.lsm
+*.lif
+*.fbd
+
+# Resultados generados
+resultados/
+*.ome.tif
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store

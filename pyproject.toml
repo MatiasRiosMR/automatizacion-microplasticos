@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "napari-mp-classifier"
+version = "0.1.0.dev0"
+description = "Clasificación automática de microplásticos recalcitrantes por phasores de fluorescencia espectral y FLIM (Nile Red)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "matiasr", email = "matijr.mr@gmail.com" }]
+keywords = ["microplastics", "phasor", "FLIM", "hyperspectral", "Nile Red", "napari"]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+
+dependencies = [
+    "phasorpy>=0.12",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas>=2.1",
+    "scikit-learn>=1.4",
+    "scikit-image>=0.24",
+    "tifffile>=2024.1.1",
+    "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-cov>=4.1", "ruff>=0.5"]
+napari = ["napari[all]>=0.4.19", "magicgui>=0.8", "qtpy>=2.4"]
+
+[project.scripts]
+napari-mp-classifier = "napari_mp_classifier.cli:main"
+
+[project.urls]
+"Póster" = "UNER/CONICET - LAMAE/LaSBI"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/napari_mp_classifier"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 95
+target-version = "py311"
