@@ -1,8 +1,14 @@
 """Demo end-to-end de la Fase 1 sobre datos sintéticos.
 
 Genera calibración + partículas sintéticas (6 polímeros + materia orgánica), clasifica con
-las 3 estrategias y las 3 modalidades, e imprime las métricas estándar. Escribe también un
-reporte a ``ejemplos/salida_demo/``.
+las 3 estrategias y las 3 modalidades, e imprime las métricas estándar. Escribe un reporte
+(CSVs + texto) y **figuras de calidad publicación/póster** a ``ejemplos/salida_demo/``:
+
+- ``figuras/phasores_<modalidad>_<estrategia>.png|pdf`` — diagrama de phasores con los
+  clusters de referencia (centroide + elipse de covarianza) y las partículas clasificadas.
+- ``figuras/matriz_confusion_fusion_knn.png|pdf`` — mapa de calor normalizado por fila.
+- ``figuras/metricas_por_polimero_fusion_knn.png|pdf`` — barras precisión/recall/F1.
+- ``figuras/comparacion_modalidades.png|pdf`` — exactitud y F1 por modalidad × estrategia.
 
 Uso::
 
@@ -23,6 +29,11 @@ import numpy as np  # noqa: E402
 from napari_mp_classifier import Calibracion, ClasificadorPhasor  # noqa: E402
 from napari_mp_classifier.metricas import evaluar_clasificacion  # noqa: E402
 from napari_mp_classifier.reportes import (  # noqa: E402
+    figura_comparacion,
+    figura_matriz_confusion,
+    figura_metricas_por_clase,
+    figura_phasores,
+    guardar_figura,
     guardar_reporte_metricas,
     resultados_a_dataframe,
 )
@@ -92,22 +103,53 @@ def main() -> None:
             f"{f['rechazo_org']:>10.3f}{f['falso_no_clasif']:>10.3f}"
         )
 
-    # Reporte detallado para un caso representativo: fusión + centroide
+    # Reporte detallado para el caso ganador: fusión + knn (ver docs/RESULTADOS_FASE1.md).
     print("\n" + "=" * 78)
-    print("DETALLE — modalidad=fusion, estrategia=centroide")
+    print("DETALLE — modalidad=fusion, estrategia=knn")
     print("=" * 78)
-    cal, X, y, pred, score, rep, columnas = correr("fusion", "centroide")
+    cal, X, y, pred, score, rep, columnas = correr("fusion", "knn")
     print(rep.resumen())
 
     carpeta = RAIZ / "ejemplos" / "salida_demo"
+    carpeta_fig = carpeta / "figuras"
     guardar_reporte_metricas(rep, carpeta)
     tabla = resultados_a_dataframe(X, pred, score, columnas=columnas, ids=np.arange(len(X)))
     tabla.insert(1, "polimero_real", y)
     tabla.to_csv(carpeta / "asignaciones.csv", index=False)
     cal.guardar_csv(carpeta / "calibracion.csv")
+
+    # ---------------------------------------------------------------- figuras
+    print("\nGenerando figuras...")
+
+    # Diagramas de phasores: una modalidad simple vs. la fusión (misma estrategia knn),
+    # para que se vea que combinar FLIM + espectral separa lo que cada una sola confunde.
+    for modalidad in ("flim", "espectral", "fusion"):
+        cal_m, X_m, y_m, pred_m, _, rep_m, columnas_m = correr(modalidad, "knn")
+        fig = figura_phasores(
+            cal_m, X_m, pred_m, columnas_m, etiquetas_reales=y_m,
+            resaltar_errores=True,
+            titulo=f"Clasificación sobre phasores sintéticos — {modalidad} + knn "
+                   f"(exactitud {rep_m.exactitud:.3f})",
+        )
+        guardar_figura(fig, carpeta_fig / f"phasores_{modalidad}_knn")
+
+    fig = figura_matriz_confusion(
+        rep, titulo="Matriz de confusión — fusión FLIM + espectral, knn"
+    )
+    guardar_figura(fig, carpeta_fig / "matriz_confusion_fusion_knn")
+
+    fig = figura_metricas_por_clase(
+        rep, titulo="Métricas por polímero — fusión FLIM + espectral, knn"
+    )
+    guardar_figura(fig, carpeta_fig / "metricas_por_polimero_fusion_knn")
+
+    fig = figura_comparacion(tabla_resumen)
+    guardar_figura(fig, carpeta_fig / "comparacion_modalidades")
+
     print(f"\nReporte escrito en: {carpeta}")
-    for p in sorted(carpeta.iterdir()):
-        print(f"  - {p.name}")
+    for p in sorted(carpeta.rglob("*")):
+        if p.is_file():
+            print(f"  - {p.relative_to(carpeta)}")
 
 
 if __name__ == "__main__":
