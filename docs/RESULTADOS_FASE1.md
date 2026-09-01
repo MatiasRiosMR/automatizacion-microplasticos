@@ -65,9 +65,29 @@ Reproducible con: `python ejemplos/demo_fase1.py` (fecha de esta corrida: 2026-0
 
 ## Artefactos generados
 
-`ejemplos/salida_demo/`: `asignaciones.csv` (una fila por partícula, con `polimero_real`,
+`ejemplos/salida_demo/`:
+
+**Tablas** — `asignaciones.csv` (una fila por partícula, con `polimero_real`,
 `polimero_predicho`, `score_rechazo`), `calibracion.csv`, `metricas_resumen.txt`,
 `metricas_por_clase.csv`, `matriz_confusion.csv`.
+
+**Figuras** (`figuras/`, PNG a 300 dpi + PDF vectorial para póster) —
+generadas por `napari_mp_classifier.reportes`:
+
+| archivo | qué muestra |
+|---|---|
+| `phasores_flim_knn.*` | diagrama de phasores FLIM: 6 clusters de referencia (centroide + elipse de covarianza 2σ) y partículas clasificadas; los aros rojos son errores. Se ven los pares que FLIM sola confunde (HDPE/LDPE/PP). |
+| `phasores_espectral_knn.*` | ídem, modalidad espectral: separa los pares que FLIM confunde. |
+| `phasores_fusion_knn.*` | fusión 4D en dos paneles (proyección FLIM y proyección espectral): prácticamente sin errores. |
+| `matriz_confusion_fusion_knn.*` | mapa de calor normalizado por fila (recall por clase) del caso ganador. |
+| `metricas_por_polimero_fusion_knn.*` | barras de precisión / recall / F1 por polímero. |
+| `comparacion_modalidades.*` | exactitud y F1(polímeros) por modalidad × estrategia (las 9 combinaciones). |
+
+Paleta categórica de los 6 polímeros en orden fijo y validada para daltonismo
+(bandas de luminosidad, piso de croma, separación CVD entre pares adyacentes);
+como el color solo no separa 6 clases con seguridad para todo tipo de daltonismo,
+cada polímero lleva además un **marcador propio** y **etiqueta directa** sobre su
+cluster (codificación secundaria: posición + forma + rótulo portan la identidad).
 
 ## Limitaciones de esta prueba
 

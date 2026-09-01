@@ -51,7 +51,8 @@ Registro cronológico de decisiones y avances. Entradas nuevas arriba.
   y cuándo una partícula queda no clasificable.
 - `metricas.py`: `evaluar_clasificacion` → exactitud, precisión/recall/F1 (macro y por
   clase), matriz de confusión, en formato comparable con Meyers 2022 / FIMAP 2025.
-- `reportes.py` (parcial): CSV de asignaciones + volcado de métricas a disco.
+- `reportes.py`: CSV de asignaciones + volcado de métricas a disco + figuras de
+  calidad publicación (ver más abajo).
 - **Tests: 18/18 en verde** (`pytest`). Cubren: construcción de calibración, exactitud
   > 0.9 en polímeros conocidos para las 3 estrategias, rechazo > 0.8 de materia orgánica
   con < 0.1 de falsos "no clasificable", orientación de la matriz de confusión, exclusión
@@ -75,6 +76,26 @@ Registro cronológico de decisiones y avances. Entradas nuevas arriba.
 - **Hallazgo para Fase 3**: el rechazo paramétrico (centroide/gmm) es sensible al
   desajuste de ruido calibración↔muestra; el de knn es robusto. Ver RESULTADOS_FASE1 §3.
 - 27 tests en verde.
+
+### Figuras de resultados — calidad publicación/póster
+
+- `reportes.py` gana el módulo de figuras que anticipaba su docstring:
+  `figura_phasores` (clusters de referencia con elipse de covarianza + partículas
+  clasificadas; 1 panel por modalidad simple, 2 para la fusión 4D),
+  `figura_matriz_confusion` (mapa de calor normalizado por fila),
+  `figura_metricas_por_clase` (barras precisión/recall/F1) y `figura_comparacion`
+  (modalidades × estrategias). `guardar_figura` escribe PNG 300 dpi + PDF vectorial.
+- Paleta de los 6 polímeros en **orden fijo y validada para daltonismo** (skill
+  `dataviz`: bandas de luminosidad, piso de croma, ΔE CVD entre pares adyacentes).
+  Como el color solo no separa 6 clases para todo tipo de daltonismo, se agrega
+  **codificación secundaria**: marcador propio por polímero + etiqueta directa
+  sobre el cluster + elipse. Estilo sobrio compartido (`ESTILO_PUBLICACION`).
+- `demo_fase1.py` ahora genera todas las figuras en `ejemplos/salida_demo/figuras/`
+  y usa `fusion + knn` (el ganador) como caso detallado. Las figuras `phasores_*`
+  muestran visualmente la tesis: FLIM sola confunde HDPE/LDPE/PP (aros rojos),
+  la espectral los separa, la fusión los resuelve.
+- +6 tests (`test_reportes.py`), 33 en verde. `conftest.py` fuerza backend Agg y
+  cierra figuras tras cada test.
 
 ### Relevamiento: spectral unmixing de λ-stacks (a pedido del equipo)
 
