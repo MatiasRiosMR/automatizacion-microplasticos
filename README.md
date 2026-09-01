@@ -85,6 +85,7 @@ print(evaluar_clasificacion(y, pred).resumen())
 - [`docs/PIPELINE.md`](docs/PIPELINE.md) — flujo de datos y estado por etapa.
 - [`docs/RESULTADOS_FASE1.md`](docs/RESULTADOS_FASE1.md) — prueba del clasificador sobre datos sintéticos.
 - [`docs/FORMATO_DATOS.md`](docs/FORMATO_DATOS.md) — formatos de entrada/salida.
+- [`docs/SPECTRAL_UNMIXING.md`](docs/SPECTRAL_UNMIXING.md) — unmixing de λ-stacks (opciones napari/Python).
 - [`docs/PREGUNTAS_DATOS.md`](docs/PREGUNTAS_DATOS.md) — pendientes con el equipo.
 - [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md) — instalación y uso.
 - [`docs/BITACORA.md`](docs/BITACORA.md) — registro de avance.

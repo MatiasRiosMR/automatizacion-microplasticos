@@ -76,6 +76,20 @@ Registro cronológico de decisiones y avances. Entradas nuevas arriba.
   desajuste de ruido calibración↔muestra; el de knn es robusto. Ver RESULTADOS_FASE1 §3.
 - 27 tests en verde.
 
+### Relevamiento: spectral unmixing de λ-stacks (a pedido del equipo)
+
+- El equipo reporta que el linear unmixing de Fiji anda mal. Se relevó el ecosistema
+  napari/Python → `docs/SPECTRAL_UNMIXING.md`.
+- **Conclusión**: `phasorpy.component` (ya es dependencia) hace unmixing basado en
+  phasores, model-free, con `phasor_component_fit` (N componentes, multi-armónico, admite
+  1 componente desconocido para autofluorescencia), `phasor_component_fraction` (2),
+  `phasor_component_graphical`, `phasor_component_mvc`. `napari-phasors` lo expone como
+  "Component analysis". Es la vía recomendada y comparte espacio con la clasificación.
+- Alternativas: napari-PICASSO (spillover ciego entre canales, GPU; no endmember de
+  λ-stack), napari-hsi-analysis (exploración/UMAP, no unmixing), napari-musa (a revisar).
+- Se planifica módulo `desmezcla.py` (Fase 3, adelantable a Fase 2 para muestras de
+  fagocitos): separar fracción NR-MP de autofluorescencia antes de clasificar.
+
 ### Próximo
 
 - Confirmar con el equipo las respuestas de `docs/PREGUNTAS_DATOS.md`.

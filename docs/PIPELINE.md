@@ -36,6 +36,7 @@ flowchart TD
 | Etapa | Módulo | Fase | Estado |
 |---|---|---|---|
 | Lectura de crudo → phasores por píxel | `io_crudo.py` | 0+ | pendiente (necesita datos reales) |
+| Spectral unmixing NR-MP vs autofluorescencia | `desmezcla.py` | 2-3 | pendiente — usa `phasorpy.component` (ver `docs/SPECTRAL_UNMIXING.md`) |
 | Calibración (centroide + covarianza) | `calibracion.py` | 1 | **hecho** |
 | Clasificación + "no clasificable" | `clasificador.py` | 1 | **hecho** (centroide / KNN / GMM) |
 | Métricas estándar | `metricas.py` | 1 | **hecho** |
