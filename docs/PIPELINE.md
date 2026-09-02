@@ -49,6 +49,7 @@ flowchart TD
 | CSV + gráficos + resumen + informe unificado | `reportes.py` | 3 | **hecho** (`generar_reporte`: CSV + métricas + figuras + `resumen_muestra.md`) |
 | CLI `classify` | `cli.py` | 3 | **hecho** (sobre `.npz`; `.sdt`/`.czi` esperan `io_crudo`) |
 | Plugin napari | `napari_integracion/` | 4 | **hecho** (widget de clasificación + phasor plot con back-projection; entorno `napari-mp-env`, py 3.12) |
+| Robustez (envejecimiento, ruido, `confianza`) + fagocitos | `tests/datos_sinteticos.py` (`grado_envejecimiento`, `generar_mascara_celular`) | 5 | **hecho** (sintético; ver `docs/RESULTADOS_FASE5.md` y `docs/DECISION_CALIBRACION.md`) |
 
 ## Regla de "no clasificable" (detalle)
 

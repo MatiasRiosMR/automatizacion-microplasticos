@@ -1,6 +1,8 @@
 # MANUAL_USUARIO.md
 
-> Borrador. Se completa en la Fase 5 con el pipeline end-to-end y la integración napari.
+Cubre el pipeline end-to-end (librería + CLI + napari) sobre datos ya calculados o
+sintéticos. La lectura de `.sdt`/`.czi` crudos (`io_crudo.py`) se agrega con los datos
+reales del equipo. Recorrido interactivo: [`../ejemplos/notebook_demo.ipynb`](../ejemplos/notebook_demo.ipynb).
 
 ## Instalación
 
@@ -126,3 +128,11 @@ para no asignar polímero a materia orgánica fluorescente (muestras ambientales
 autofluorescencia celular (monocitos / neutrófilos). Subir `confianza` → menos rechazos,
 más riesgo de falso positivo; bajarla → más rechazos, más riesgo de perder polímero real
 o envejecido. `confianza=None` desactiva el rechazo.
+
+**Punto de operación recomendado para muestras ambientales: `confianza = 0.995`** — bajo
+desajuste de envejecimiento moderado recupera casi todo el polímero real que el 0.99
+pierde, sin bajar casi el rechazo de materia orgánica (ver `RESULTADOS_FASE5.md`). Lo
+ideal es fijarlo por validación cruzada sobre la calibración real.
+
+La calibración se hace sobre polímero **envejecido con el estándar** (abrasión + H₂O₂
+[+ UV]), no virgen — ver `DECISION_CALIBRACION.md`.

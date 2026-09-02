@@ -44,3 +44,13 @@ Mientras tanto se avanza con datos sintéticos (Fase 1).
 
 12. ¿La calibración se hace **solo con polímero virgen** (limitación declarada) o el
     equipo tiene material **degradado artificialmente** para sumar al set de calibración?
+
+    **RESPONDIDO (2026-09-02).** No se usa polímero virgen. La calibración se hace sobre
+    polímero **envejecido de forma controlada**: abrasión mecánica + H₂O₂ (oxidativo /
+    térmico), opcionalmente UV 1 h (fotoenvejecimiento), antes de teñir con Nile Red. Esto
+    alinea calibración y muestra ambiental en el mismo estado de degradación y sortea el
+    modo de falla de Meyers 2024. Análisis del riesgo residual (variabilidad del grado de
+    envejecimiento) y recomendaciones en `docs/DECISION_CALIBRACION.md` y
+    `docs/RESULTADOS_FASE5.md`.
+    Pendiente: nº de lotes del estándar por polímero, y si se sumarán mediciones con
+    distintos grados de envejecimiento (con/sin UV, distintos tiempos de H₂O₂).

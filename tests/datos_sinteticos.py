@@ -109,11 +109,26 @@ def generar_calibracion(
     return pd.DataFrame(filas)
 
 
+def _deriva_envejecimiento(centro: np.ndarray, centro_global: np.ndarray) -> np.ndarray:
+    """Dirección unitaria de deriva por envejecimiento: del cluster hacia el centro común.
+
+    Modelo sintético: al degradarse la matriz polimérica (abrasión + H2O2 + UV) la
+    respuesta de Nile Red pierde especificidad y los 6 clusters **convergen** hacia una
+    firma común. Es el escenario que hace más difícil clasificar, y el que interesa medir
+    para la robustez (los 6 polímeros de referencia ya se calibran envejecidos con el
+    mismo protocolo; el riesgo es la *variabilidad del grado* de envejecimiento).
+    """
+    direccion = centro_global - centro
+    norma = np.linalg.norm(direccion)
+    return direccion / norma if norma > 0 else np.zeros_like(direccion)
+
+
 def generar_particulas(
     modalidad: str = "flim",
     n_por_polimero: int = 40,
     n_no_clasificables: int = 60,
     sigma: float = 0.025,
+    grado_envejecimiento: float = 0.0,
     semilla: int = 1,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Genera partículas a clasificar con verdad de terreno.
@@ -127,6 +142,14 @@ def generar_particulas(
     n_por_polimero : int
     n_no_clasificables : int
     sigma : float
+        Desvío base del ruido en el plano de phasores.
+    grado_envejecimiento : float, optional
+        Desajuste del estado de envejecimiento de la muestra respecto del estándar de
+        calibración. ``0`` = igual que la calibración (los 6 clusters de referencia ya son
+        de polímero envejecido con abrasión + H2O2 [+ UV]). Un valor ``g > 0`` desplaza
+        cada cluster una fracción ``g`` hacia la firma común (convergencia por degradación)
+        e infla el ruido en ``1 + 0.6·|g|``; ``g < 0`` simula muestra **menos** meteorizada
+        que el estándar (deriva en sentido opuesto). Por defecto ``0``.
     semilla : int
 
     Returns
@@ -138,14 +161,27 @@ def generar_particulas(
     centroides = centroides_referencia(modalidad)
     columnas = _columnas(modalidad)
     d = len(columnas)
+    centro_global = np.mean(list(centroides.values()), axis=0)
+
+    # Escala típica de separación entre clusters, para dar unidades a `grado`.
+    escala = float(np.mean([
+        np.linalg.norm(c - centro_global) for c in centroides.values()
+    ]))
+    sigma_efectivo = sigma * (1.0 + 0.6 * abs(grado_envejecimiento))
 
     X_list, y_list = [], []
     for p, centro in centroides.items():
-        X_list.append(rng.multivariate_normal(centro, _cov_isotropica(d, sigma), size=n_por_polimero))
+        centro_muestra = centro + grado_envejecimiento * escala * _deriva_envejecimiento(
+            centro, centro_global
+        )
+        X_list.append(
+            rng.multivariate_normal(centro_muestra, _cov_isotropica(d, sigma_efectivo),
+                                    size=n_por_polimero)
+        )
         y_list.append(np.full(n_por_polimero, p))
 
     if n_no_clasificables > 0:
-        centro_organico = np.mean(list(centroides.values()), axis=0) + 0.22
+        centro_organico = centro_global + 0.22
         cov_organico = _cov_isotropica(d, sigma * 4)
         X_list.append(rng.multivariate_normal(centro_organico, cov_organico, size=n_no_clasificables))
         y_list.append(np.full(n_no_clasificables, "no_clasificable"))
@@ -180,6 +216,7 @@ def generar_imagen_muestra(
     sigma_phasor: float = 0.03,
     fondo: float = 0.03,
     sigma_fondo: float = 0.01,
+    grado_envejecimiento: float = 0.0,
     semilla: int = 0,
 ) -> tuple[dict[str, np.ndarray], dict]:
     """Genera una imagen sintética de muestra multimodal para probar la Fase 2.
@@ -216,6 +253,9 @@ def generar_imagen_muestra(
         Intensidad media del fondo.
     sigma_fondo : float
         Ruido del fondo.
+    grado_envejecimiento : float, optional
+        Desajuste del estado de envejecimiento respecto del estándar de calibración
+        (ver :func:`generar_particulas`). Por defecto ``0``.
     semilla : int
 
     Returns
@@ -236,8 +276,14 @@ def generar_imagen_muestra(
     margen = int(np.ceil(radio_px[1] * 2))
     sep_min = 2.3 * radio_px[1]
 
-    centros_fusion = centroides_referencia("fusion")
-    centro_organico = np.mean(list(centros_fusion.values()), axis=0) + 0.22
+    centros_ref = centroides_referencia("fusion")
+    centro_global = np.mean(list(centros_ref.values()), axis=0)
+    escala = float(np.mean([np.linalg.norm(c - centro_global) for c in centros_ref.values()]))
+    centros_fusion = {
+        p: c + grado_envejecimiento * escala * _deriva_envejecimiento(c, centro_global)
+        for p, c in centros_ref.items()
+    }
+    centro_organico = centro_global + 0.22
 
     plan: list[tuple[str, np.ndarray, float]] = []
     for p in POLIMEROS:
@@ -275,13 +321,15 @@ def generar_imagen_muestra(
     contribuciones: list[np.ndarray] = []
     codigos: list[str] = []
 
+    ruido_envejecimiento = 1.0 + 0.6 * abs(grado_envejecimiento)
     for (cy, cx), radio, (tipo, vector_phasor, factor_ruido) in zip(posiciones, radios, plan):
         amplitud = rng.uniform(0.25, 0.4) if tipo == "organico" else rng.uniform(0.7, 1.0)
         r2 = (yy - cy) ** 2 + (xx - cx) ** 2
         contrib = amplitud * np.exp(-((r2 / (2.0 * radio**2)) ** 2))  # súper-gaussiana
         intensidad += contrib
+        escala_ruido = sigma_phasor * factor_ruido * (ruido_envejecimiento if tipo == "polimero" else 1.0)
         for i, canal in enumerate(CANALES_IMAGEN[1:]):
-            ruido = rng.normal(0.0, sigma_phasor * factor_ruido, forma)
+            ruido = rng.normal(0.0, escala_ruido, forma)
             acumulador[canal] += contrib * (vector_phasor[i] + ruido)
         peso += contrib
         contribuciones.append(contrib)
@@ -324,3 +372,53 @@ def _codigo_de_centro(vector: np.ndarray, centros: dict[str, np.ndarray]) -> str
         if np.allclose(centro, vector):
             return codigo
     return "no_clasificable"
+
+
+def generar_mascara_celular(
+    forma: tuple[int, int],
+    verdad: dict,
+    *,
+    fraccion_fagocitada: float = 0.6,
+    radio_celula_px: float = 16.0,
+    semilla: int = 0,
+) -> np.ndarray:
+    """Máscara sintética de células que fagocitaron parte de las partículas.
+
+    Dibuja un disco (la célula) alrededor de una fracción de las partículas de polímero de
+    la verdad de terreno. Sirve para probar
+    :func:`napari_mp_classifier.segmentacion.restringir_a_mascara` en el flujo de fagocitos
+    (monocitos / neutrófilos, Park et al. 2020): las partículas dentro de una célula son
+    NR-MP fagocitado; las de afuera se descartan.
+
+    Parameters
+    ----------
+    forma : tuple of int
+        Forma de la imagen (igual que la de :func:`generar_imagen_muestra`).
+    verdad : dict
+        El ``verdad`` que devuelve :func:`generar_imagen_muestra`.
+    fraccion_fagocitada : float, optional
+        Fracción de partículas de polímero que quedan dentro de una célula. Por defecto ``0.6``.
+    radio_celula_px : float, optional
+        Radio del disco celular. Por defecto ``16``.
+    semilla : int, optional
+
+    Returns
+    -------
+    numpy.ndarray of bool
+        Máscara de las células.
+    """
+    rng = np.random.default_rng(semilla)
+    alto, ancho = forma
+    yy, xx = np.mgrid[0:alto, 0:ancho].astype(float)
+    mascara = np.zeros(forma, dtype=bool)
+
+    labels = verdad["labels"]
+    polimeros = [lbl for lbl, cod in verdad["polimero"].items() if cod != "no_clasificable"]
+    rng.shuffle(polimeros)
+    n_dentro = round(fraccion_fagocitada * len(polimeros))
+
+    for etiqueta in polimeros[:n_dentro]:
+        fila, col = np.argwhere(labels == etiqueta).mean(axis=0)
+        radio = radio_celula_px * rng.uniform(0.9, 1.3)
+        mascara |= (yy - fila) ** 2 + (xx - col) ** 2 <= radio**2
+    return mascara

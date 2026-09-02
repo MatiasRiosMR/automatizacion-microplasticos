@@ -198,11 +198,33 @@ Registro cronológico de decisiones y avances. Entradas nuevas arriba.
 - Limitación: las capturas del lienzo de napari necesitan display real (OpenGL); en
   headless se omiten. La lógica queda cubierta por los tests.
 
-### Próximo
+### Fase 5 — robustez, fagocitos, decisión de calibración, notebook  ✔
 
-- Confirmar con el equipo las respuestas de `docs/PREGUNTAS_DATOS.md`.
-- Recibir `.sdt` y `.czi` de ejemplo → implementar `io_crudo.py` y validar la calibración
-  real contra la sintética.
-- Fase 5: robustez (envejecimiento Meyers 2024, ruido, desmezcla integrada al pipeline),
-  validación con muestras reales cuando lleguen, manual de usuario + notebook demo,
-  decisión formal sobre calibración virgen vs. envejecido.
+- **Decisión de calibración** (`docs/DECISION_CALIBRACION.md`): el equipo **no usa polímero
+  virgen**. La calibración se hace sobre polímero envejecido con el estándar (abrasión +
+  H2O2 [+ UV 1 h]), alineando calibración y muestra ambiental → sortea el modo de falla de
+  Meyers 2024. Riesgo residual: variabilidad del grado de envejecimiento.
+- `tests/datos_sinteticos.py`: `generar_particulas`/`generar_imagen_muestra` ganan
+  `grado_envejecimiento` (modelo: los 6 clusters convergen a una firma común + inflación de
+  ruido); `generar_mascara_celular` (máscara celular sintética para fagocitos).
+- `ejemplos/demo_fase5.py` (6 experimentos) + `docs/RESULTADOS_FASE5.md`.
+- `ejemplos/notebook_demo.ipynb` — recorrido end-to-end en Jupyter (Fases 1–5).
+- `tests/test_robustez.py` (+11). **89 tests en verde** (base) / 95 en `napari-mp-env`.
+- Respondida la pregunta 12 de `docs/PREGUNTAS_DATOS.md`.
+
+### Resultados clave (sintético)
+
+- **Ventana de tolerancia al desajuste de envejecimiento ~±0,15** (exactitud > 0,93),
+  degradación gradual, modo de falla conservador (a `no_clasificable`, no a otro polímero).
+- **`confianza = 0,995` recomendado** para muestras ambientales (recupera polímero real
+  perdido sin bajar casi el rechazo de materia orgánica).
+- **La fusión FLIM+espectral es más robusta al envejecimiento que cualquier modalidad
+  sola en todo el rango** — la tesis del proyecto se sostiene bajo desajuste de dominio.
+- Desmezcla previa: elimina 21 de 22 ROIs de materia orgánica (a costa de ~10 ROIs de
+  polímero tenue). `restringir_a_mascara` aísla el MP fagocitado.
+
+### Estado del proyecto
+
+Fases 0–5 completas sobre datos sintéticos. **Falta la validación con `.sdt`/`.czi`
+reales** (`io_crudo.py` + calibración medida + muestras ambientales / de cultivos), que
+depende de que el equipo entregue los datos y responda `docs/PREGUNTAS_DATOS.md`.
