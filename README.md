@@ -22,7 +22,7 @@ LAMAE/LaSBI).
 | 0 | Diseño y evaluación de dependencias | ✔ ([`docs/FASE_0_EVALUACION.md`](docs/FASE_0_EVALUACION.md)) |
 | 1 | Datos sintéticos + clasificador base (`calibracion`, `clasificador`, `metricas`) | ✔ — resultados en [`docs/RESULTADOS_FASE1.md`](docs/RESULTADOS_FASE1.md) |
 | 2 | Segmentación + features (`segmentacion`, `features`) | ✔ — IoU 0,81 (nivel FIMAP); resultados en [`docs/RESULTADOS_FASE2.md`](docs/RESULTADOS_FASE2.md) |
-| 3 | Pipeline completo + reportes + CLI + fusión | pendiente |
+| 3 | Pipeline + reportes + CLI + fusión + desmezcla (`pipeline`, `fusion`, `desmezcla`, `cli`) | ✔ — resultados en [`docs/RESULTADOS_FASE3.md`](docs/RESULTADOS_FASE3.md) |
 | 4 | Integración napari | pendiente |
 | 5 | Validación (muestras ambientales / celulares), robustez, documentación | pendiente |
 
@@ -107,6 +107,29 @@ print(feats[["area_px", "g_flim", "s_flim", "polimero_predicho"]])
 
 Demo completa con figuras: `python ejemplos/demo_fase2.py`.
 
+## Pipeline completo (Fase 3)
+
+```python
+from napari_mp_classifier import Calibracion, analizar_muestra
+from napari_mp_classifier.reportes import generar_reporte
+
+# canales: dict con 'intensidad' + phasores por píxel; df: mediciones de calibración
+resultado = analizar_muestra(
+    canales, Calibracion.desde_dataframe(df, columnas=["g_flim", "s_flim", "g_esp", "s_esp"]),
+    estrategia="knn",
+    mediciones_calibracion=(df[["g_flim", "s_flim", "g_esp", "s_esp"]].to_numpy(), df["polimero"].to_numpy()),
+)
+generar_reporte(resultado, "resultados/", canales=canales)   # CSV + métricas + figuras
+```
+
+O desde la terminal:
+
+```bash
+napari-mp-classifier classify muestra.npz --calibracion calibracion.csv --salida resultados/
+```
+
+Demo con fusión y desmezcla: `python ejemplos/demo_fase3.py`.
+
 ## Documentación
 
 - [`docs/ANTECEDENTES.md`](docs/ANTECEDENTES.md) — las 6 referencias y su influencia de diseño.
@@ -114,6 +137,7 @@ Demo completa con figuras: `python ejemplos/demo_fase2.py`.
 - [`docs/PIPELINE.md`](docs/PIPELINE.md) — flujo de datos y estado por etapa.
 - [`docs/RESULTADOS_FASE1.md`](docs/RESULTADOS_FASE1.md) — prueba del clasificador sobre datos sintéticos.
 - [`docs/RESULTADOS_FASE2.md`](docs/RESULTADOS_FASE2.md) — segmentación + features + clasificación por ROI.
+- [`docs/RESULTADOS_FASE3.md`](docs/RESULTADOS_FASE3.md) — pipeline completo, fusión, desmezcla, CLI.
 - [`docs/FORMATO_DATOS.md`](docs/FORMATO_DATOS.md) — formatos de entrada/salida.
 - [`docs/SPECTRAL_UNMIXING.md`](docs/SPECTRAL_UNMIXING.md) — unmixing de λ-stacks (opciones napari/Python).
 - [`docs/PREGUNTAS_DATOS.md`](docs/PREGUNTAS_DATOS.md) — pendientes con el equipo.

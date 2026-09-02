@@ -102,6 +102,29 @@ def test_figura_matriz_confusion_normalizar_invalido():
         figura_matriz_confusion(rep, normalizar="columna")
 
 
+def test_generar_reporte_unificado(tmp_path):
+    from datos_sinteticos import _columnas, generar_imagen_muestra
+
+    from napari_mp_classifier import Calibracion, analizar_muestra
+    from napari_mp_classifier.reportes import generar_reporte
+
+    canales, verdad = generar_imagen_muestra(semilla=0)
+    df_cal = generar_calibracion("fusion", n_por_polimero=60)
+    cal = Calibracion.desde_dataframe(df_cal, columnas=_columnas("fusion"))
+    res = analizar_muestra(
+        canales, cal, estrategia="knn",
+        mediciones_calibracion=(df_cal[_columnas("fusion")].to_numpy(), df_cal["polimero"].to_numpy()),
+        verdad=verdad,
+    )
+    rutas = generar_reporte(res, tmp_path / "rep", canales=canales, titulo="demo")
+
+    assert (tmp_path / "rep" / "asignaciones.csv").exists()
+    texto = (tmp_path / "rep" / "resumen_muestra.md").read_text(encoding="utf-8")
+    assert "ROIs detectadas" in texto and "Clasificación" in texto
+    for clave in ("fig_phasores", "fig_segmentacion", "fig_matriz", "fig_metricas"):
+        assert rutas[clave].exists()
+
+
 def test_figura_segmentacion(tmp_path):
     canales, _ = generar_imagen_muestra(semilla=0)
     labels = segmentar(canales["intensidad"], metodo="umbral")

@@ -43,9 +43,11 @@ flowchart TD
 | Segmentación de ROIs | `segmentacion.py` | 2 | **hecho** (Otsu / K-means FIMAP + watershed + máscara celular; IoU 0,81) |
 | Features por ROI | `features.py` | 2 | **hecho** (phasor por ROI + forma + intensidad + dispersión) |
 | Métricas de segmentación | `metricas.py` | 2 | **hecho** (IoU, precisión/recall de detección) |
-| Fusión FLIM + espectral | `fusion.py` | 3 | pendiente (calibración 4D y features 4D ya soportadas) |
-| CSV + gráficos + resumen | `reportes.py` | 3 | parcial (CSV, métricas y `figura_segmentacion` a disco) |
-| CLI `classify` | `cli.py` | 3 | esqueleto |
+| Fusión FLIM + espectral | `fusion.py` | 3 | **hecho** (`fusionar_por_roi` registrado, `fusionar_por_decision` no registrado) |
+| Desmezcla NR-MP vs autofluorescencia | `desmezcla.py` | 3 | **hecho** (envuelve `phasorpy.component`; componente autofluor. sintético hasta tener `.czi`) |
+| Pipeline seg→features→clasificación | `pipeline.py` | 3 | **hecho** (`analizar_muestra` → `ResultadoMuestra`) |
+| CSV + gráficos + resumen + informe unificado | `reportes.py` | 3 | **hecho** (`generar_reporte`: CSV + métricas + figuras + `resumen_muestra.md`) |
+| CLI `classify` | `cli.py` | 3 | **hecho** (sobre `.npz`; `.sdt`/`.czi` esperan `io_crudo`) |
 | Plugin napari | `napari_integracion/` | 4 | pendiente |
 
 ## Regla de "no clasificable" (detalle)

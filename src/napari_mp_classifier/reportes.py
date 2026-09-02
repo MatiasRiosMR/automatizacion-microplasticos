@@ -12,8 +12,9 @@ Dos familias de salida:
   ROIs segmentadas y etiquetadas (:func:`figura_segmentacion`). Todas comparten paleta,
   tipografía y estilo (:data:`ESTILO_PUBLICACION`) y se guardan en varios formatos con
   :func:`guardar_figura`.
-
-Pendiente (Fase 3): resumen estadístico por muestra, informe HTML/PDF unificado.
+- **Informe unificado** (:func:`generar_reporte`): toma el :class:`ResultadoMuestra` del
+  pipeline y escribe en una carpeta el CSV de asignaciones, las métricas, todas las
+  figuras y un ``resumen_muestra.md``.
 
 Todo reporte de resultados incluye **siempre** las métricas estándar de
 :mod:`napari_mp_classifier.metricas`, no solo el CSV de asignaciones
@@ -703,3 +704,140 @@ def guardar_figura(
     if cerrar:
         plt.close(fig)
     return escritas
+
+
+# ================================================================= informe unificado
+
+
+def resumen_muestra(resultado) -> str:
+    """Texto (Markdown) con el resumen de un :class:`ResultadoMuestra`.
+
+    Incluye parámetros del análisis, conteo de ROIs por polímero y, si hay verdad de
+    terreno, las métricas de segmentación y clasificación.
+    """
+    p = resultado.parametros
+    lineas = [
+        "# Resumen de la muestra",
+        "",
+        f"- ROIs detectadas: **{resultado.n_rois}**",
+        (
+            f"- modalidad: {p.get('modalidad', '?')} · "
+            f"estrategia: {p.get('estrategia', '?')} · "
+            f"confianza: {p.get('confianza', '?')}"
+        ),
+        f"- segmentación: {p.get('metodo_segmentacion', '?')}",
+        "",
+        "## ROIs por polímero predicho",
+        "",
+    ]
+    conteo = resultado.conteo_por_polimero()
+    for etiqueta, n in conteo.items():
+        nombre = "no clasificable" if etiqueta == NO_CLASIFICABLE else etiqueta
+        lineas.append(f"- {nombre}: {int(n)}")
+
+    if resultado.reporte_segmentacion is not None:
+        lineas += ["", "## Segmentación (vs. verdad de terreno)", "",
+                   "```", resultado.reporte_segmentacion.resumen(), "```"]
+    if resultado.reporte_clasificacion is not None:
+        lineas += ["", "## Clasificación (vs. verdad de terreno)", "",
+                   "```", resultado.reporte_clasificacion.resumen(), "```"]
+    return "\n".join(lineas) + "\n"
+
+
+def generar_reporte(
+    resultado,
+    carpeta: str | Path,
+    *,
+    canales: dict | None = None,
+    titulo: str = "Muestra",
+    formatos: tuple[str, ...] = ("png", "pdf"),
+) -> dict[str, Path]:
+    """Escribe el informe completo de un :class:`ResultadoMuestra` en ``carpeta``.
+
+    Genera:
+
+    - ``asignaciones.csv`` — features + ``polimero_predicho`` + ``score_rechazo``
+      (+ ``polimero_real`` si hubo verdad de terreno).
+    - ``resumen_muestra.md`` — :func:`resumen_muestra`.
+    - ``metricas_resumen.txt`` / ``metricas_por_clase.csv`` / ``matriz_confusion.csv`` —
+      solo si el resultado trae ``reporte_clasificacion``.
+    - ``figuras/phasores_muestra.*`` — ROIs sobre los clusters de referencia.
+    - ``figuras/segmentacion.*`` — overlay de ROIs sobre la imagen (si se pasa ``canales``).
+    - ``figuras/matriz_confusion.*`` / ``figuras/metricas_por_polimero.*`` — si hubo verdad.
+
+    Parameters
+    ----------
+    resultado : ResultadoMuestra
+        Salida de :func:`~napari_mp_classifier.pipeline.analizar_muestra`.
+    carpeta : str or pathlib.Path
+        Carpeta de salida (se crea).
+    canales : dict, optional
+        Canales de la muestra (para el overlay de segmentación). Debe tener
+        ``"intensidad"``.
+    titulo : str, optional
+        Prefijo de los títulos de las figuras.
+    formatos : tuple of str, optional
+        Formatos de las figuras. Por defecto ``("png", "pdf")``.
+
+    Returns
+    -------
+    dict[str, pathlib.Path]
+        Rutas de los archivos principales escritos.
+    """
+    from .features import matriz_features
+
+    carpeta = Path(carpeta)
+    figuras = carpeta / "figuras"
+    carpeta.mkdir(parents=True, exist_ok=True)
+
+    rutas: dict[str, Path] = {}
+
+    rutas["asignaciones"] = carpeta / "asignaciones.csv"
+    resultado.features.to_csv(rutas["asignaciones"])
+
+    rutas["resumen"] = carpeta / "resumen_muestra.md"
+    rutas["resumen"].write_text(resumen_muestra(resultado), encoding="utf-8")
+
+    if resultado.reporte_clasificacion is not None:
+        metricas = guardar_reporte_metricas(resultado.reporte_clasificacion, carpeta)
+        rutas.update({f"metricas_{clave}": ruta for clave, ruta in metricas.items()})
+
+    if resultado.n_rois:
+        X, columnas = matriz_features(resultado.features, resultado.parametros["modalidad"])
+        reales = (
+            resultado.features["polimero_real"].to_numpy()
+            if "polimero_real" in resultado.features.columns
+            else None
+        )
+        fig = figura_phasores(
+            resultado.calibracion, X,
+            resultado.features["polimero_predicho"].to_numpy(), columnas,
+            etiquetas_reales=reales, resaltar_errores=reales is not None,
+            titulo=f"{titulo} — phasores de las ROIs",
+        )
+        rutas["fig_phasores"] = guardar_figura(fig, figuras / "phasores_muestra", formatos)[0]
+
+    if canales is not None and "intensidad" in canales:
+        etiquetas = {
+            int(label): codigo
+            for label, codigo in zip(
+                resultado.features.index, resultado.features["polimero_predicho"]
+            )
+        }
+        fig = figura_segmentacion(
+            canales["intensidad"], resultado.labels,
+            etiquetas_por_label=etiquetas, titulo=f"{titulo} — ROIs clasificadas",
+        )
+        rutas["fig_segmentacion"] = guardar_figura(fig, figuras / "segmentacion", formatos)[0]
+
+    if resultado.reporte_clasificacion is not None:
+        fig = figura_matriz_confusion(
+            resultado.reporte_clasificacion, titulo=f"{titulo} — matriz de confusión"
+        )
+        rutas["fig_matriz"] = guardar_figura(fig, figuras / "matriz_confusion", formatos)[0]
+        fig = figura_metricas_por_clase(
+            resultado.reporte_clasificacion, titulo=f"{titulo} — métricas por polímero"
+        )
+        rutas["fig_metricas"] = guardar_figura(fig, figuras / "metricas_por_polimero", formatos)[0]
+
+    return rutas

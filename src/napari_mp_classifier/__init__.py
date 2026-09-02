@@ -20,6 +20,7 @@ NO_CLASIFICABLE: str = "no_clasificable"
 from .calibracion import Calibracion
 from .clasificador import ClasificadorPhasor
 from .features import extraer_features, matriz_features
+from .pipeline import ResultadoMuestra, analizar_muestra
 from .segmentacion import segmentar
 
 __all__ = [
@@ -27,7 +28,9 @@ __all__ = [
     "POLIMEROS",
     "Calibracion",
     "ClasificadorPhasor",
+    "ResultadoMuestra",
     "__version__",
+    "analizar_muestra",
     "extraer_features",
     "matriz_features",
     "segmentar",

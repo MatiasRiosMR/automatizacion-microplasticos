@@ -155,10 +155,39 @@ Registro cronológico de decisiones y avances. Entradas nuevas arriba.
   dentro del umbral. → En la Fase 3 hace falta `desmezcla.py` (`phasorpy.component`) antes
   de clasificar para matrices complejas, y/o usar la dispersión intra-ROI como feature.
 
+### Fase 3 — pipeline + fusión + desmezcla + CLI  ✔
+
+- **`pipeline.py`**: `analizar_muestra(canales, calibracion, …)` → `ResultadoMuestra`
+  (features + `polimero_predicho` + `score_rechazo` + reportes de seg/clf si hay verdad).
+  Deduce la modalidad de los canales presentes. Soporta `mascara_celular` (fagocitos).
+- **`fusion.py`**: `fusionar_por_roi` (empareja ROIs de dos segmentaciones registradas por
+  cercanía de centroide), `fusionar_por_decision` (combina dos clasificaciones
+  independientes; acuerdo → polímero, desacuerdo/rechazo → `no_clasificable`).
+- **`desmezcla.py`**: `fracciones_dos_componentes` / `fracciones_multi_componente`
+  (envuelven `phasorpy.component`), `enmascarar_por_fraccion`, `phasor_mp_de_calibracion`.
+- **`reportes.generar_reporte`**: informe unificado (CSV + métricas + figuras +
+  `resumen_muestra.md`). `reportes.resumen_muestra`.
+- **`cli.py classify`** funcionando sobre `.npz` (canales) + CSV de calibración → informe.
+- `ejemplos/demo_fase3.py` + `docs/RESULTADOS_FASE3.md`. **78 tests en verde** (+24). ruff limpio.
+
+### Resultados (12 imágenes sintéticas)
+
+- Pipeline (fusión 4D + knn): IoU seg 0,81, exactitud clf 0,95, **exactitud sobre ROIs de
+  polímero bien segmentadas 0,994 ± 0,014**. No degrada respecto a correr las etapas a mano.
+- Fusión 4D ≈ fusión por decisión ≈ una modalidad sola sobre ROIs sintéticas limpias
+  (el phasor de ROI es mediana de cientos de píxeles → ruido ~0). La ventaja de la fusión
+  se ve bajo ruido/degradación (Fase 1: 0,987 vs 0,88–0,94; se reconfirma en Fase 5).
+- Desmezcla separa las poblaciones: fracción NR-MP media **0,60 en polímero vs 0,13 en
+  materia orgánica** → `enmascarar_por_fraccion` antes de segmentar debería estabilizar el
+  rechazo de materia orgánica que hoy es ruidoso (0,65 ± 0,28).
+
 ### Próximo
 
 - Confirmar con el equipo las respuestas de `docs/PREGUNTAS_DATOS.md`.
 - Recibir `.sdt` y `.czi` de ejemplo → implementar `io_crudo.py` y validar la calibración
   real contra la sintética.
-- Fase 3: `fusion.py` (fusión por ROI), pipeline `cli.py classify` end-to-end, `desmezcla.py`,
-  informe unificado.
+- Fase 4: plugin napari (`napari_integracion/`) — widget de clasificación + capa Labels +
+  back-projection al phasor plot. **napari no está instalado y Qt es frágil en 3.14** → se
+  entrega el código con tests que no dependan de Qt, marcado "no probado en runtime".
+- Fase 5: robustez (envejecimiento Meyers 2024, ruido, desmezcla integrada), validación con
+  muestras reales cuando lleguen, manual + notebook.

@@ -40,14 +40,60 @@ y_true = np.array(["PVC", "PET", "no_clasificable"])
 print(evaluar_clasificacion(y_true, etiquetas).resumen())
 ```
 
+## Uso como librería — pipeline completo (imagen → partículas clasificadas)
+
+```python
+from napari_mp_classifier import Calibracion, analizar_muestra
+from napari_mp_classifier.reportes import generar_reporte
+
+# canales: dict con 'intensidad' (2D) + phasores por píxel ('g_flim','s_flim','g_esp','s_esp')
+# df_cal: DataFrame de mediciones de calibración (columnas de phasor + 'polimero')
+columnas = ["g_flim", "s_flim", "g_esp", "s_esp"]
+cal = Calibracion.desde_dataframe(df_cal, columnas=columnas)
+
+resultado = analizar_muestra(
+    canales, cal,
+    estrategia="knn",
+    mediciones_calibracion=(df_cal[columnas].to_numpy(), df_cal["polimero"].to_numpy()),
+    escala_um_px=0.18,          # opcional, para area_um2
+    # mascara_celular=mascara,  # opcional, para muestras de fagocitos (Mo/PMN)
+)
+
+print(resultado.conteo_por_polimero())
+generar_reporte(resultado, "resultados/", canales=canales)   # CSV + métricas + figuras
+```
+
 ## Uso como CLI
 
 ```bash
 napari-mp-classifier --version
-napari-mp-classifier classify muestra.tif --calibracion calibracion.csv --salida resultados/
+napari-mp-classifier classify muestra.npz \
+    --calibracion calibracion.csv --salida resultados/ \
+    --estrategia knn --confianza 0.99 --escala-um-px 0.18
 ```
 
-(El comando `classify` se implementa en la Fase 3.)
+- `muestra.npz`: arrays 2D `intensidad` (obligatorio) + `g_flim`/`s_flim`/`g_esp`/`s_esp`
+  (al menos un par). La modalidad se deduce de los canales presentes.
+- `calibracion.csv`: una fila por medición de calibración, con las columnas de phasor y
+  una columna `polimero`.
+- Escribe en `--salida` el informe unificado: `asignaciones.csv`, `resumen_muestra.md`,
+  métricas y figuras.
+- La lectura de `.sdt` / `.czi` crudos se habilita cuando esté `io_crudo.py` (datos reales).
+
+## Separar Nile Red-MP de autofluorescencia (desmezcla)
+
+Para muestras ambientales o de fagocitos, antes de clasificar:
+
+```python
+from napari_mp_classifier.desmezcla import fracciones_dos_componentes, enmascarar_por_fraccion
+
+frac_mp = fracciones_dos_componentes(canales["g_esp"], canales["s_esp"],
+                                     phasor_mp=(0.33, 0.38),
+                                     phasor_autofluorescencia=(0.66, 0.60))
+canales_filtrados = dict(canales)
+mascara_mp = enmascarar_por_fraccion(frac_mp, umbral=0.4)
+canales_filtrados["intensidad"] = canales["intensidad"] * mascara_mp
+```
 
 ## ¿Cuándo una partícula queda "no clasificable"?
 
