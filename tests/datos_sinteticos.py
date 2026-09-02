@@ -162,3 +162,165 @@ def _columnas(modalidad: str) -> list[str]:
         "espectral": ["g_esp", "s_esp"],
         "fusion": ["g_flim", "s_flim", "g_esp", "s_esp"],
     }[modalidad]
+
+
+# ---------------------------------------------------------------------------
+# Fase 2 — imágenes sintéticas de "muestra" (blobs + fondo + materia orgánica)
+# ---------------------------------------------------------------------------
+
+CANALES_IMAGEN: tuple[str, ...] = ("intensidad", "g_flim", "s_flim", "g_esp", "s_esp")
+
+
+def generar_imagen_muestra(
+    forma: tuple[int, int] = (320, 320),
+    n_por_polimero: int = 4,
+    n_materia_organica: int = 8,
+    n_pares_contacto: int = 4,
+    radio_px: tuple[float, float] = (6.0, 10.0),
+    sigma_phasor: float = 0.03,
+    fondo: float = 0.03,
+    sigma_fondo: float = 0.01,
+    semilla: int = 0,
+) -> tuple[dict[str, np.ndarray], dict]:
+    """Genera una imagen sintética de muestra multimodal para probar la Fase 2.
+
+    Simula un campo de microscopía de Nile Red con partículas de microplástico
+    (``n_por_polimero`` por cada uno de los 6 polímeros), cuerpos de "materia orgánica /
+    autofluorescencia" (más grandes, más tenues, con firma de phasor difusa y desplazada)
+    y un fondo ruidoso. Las partículas se colocan con una separación mínima; además se
+    agregan ``n_pares_contacto`` partículas pegadas a otra ya colocada, para ejercitar la
+    separación por ``watershed``.
+
+    Cada píxel con señal lleva coordenadas de phasor FLIM y espectral: el centroide del
+    polímero (o el de la nube orgánica) más ruido gaussiano. Donde varias partículas se
+    solapan, el phasor es el promedio ponderado por intensidad (imita el mezclado real y
+    genera dispersión intra-ROI en el borde de contacto). El fondo tiene phasor ``NaN``.
+
+    Parameters
+    ----------
+    forma : tuple of int
+        Alto y ancho de la imagen en px.
+    n_por_polimero : int
+        Partículas de microplástico por polímero.
+    n_materia_organica : int
+        Cuerpos de materia orgánica / autofluorescencia (verdad ``"no_clasificable"``).
+    n_pares_contacto : int
+        Partículas extra pegadas a otra ya colocada (generan pares en contacto).
+    radio_px : tuple of float
+        Rango del radio de las partículas de polímero (los cuerpos orgánicos son ~1,6×
+        más grandes). El perfil es súper-gaussiano (borde más marcado que una gaussiana).
+    sigma_phasor : float
+        Desvío del ruido de phasor por píxel en las partículas de polímero
+        (3× en los cuerpos orgánicos).
+    fondo : float
+        Intensidad media del fondo.
+    sigma_fondo : float
+        Ruido del fondo.
+    semilla : int
+
+    Returns
+    -------
+    canales : dict[str, numpy.ndarray]
+        ``"intensidad"`` (2D, ``>= 0``) y ``"g_flim"``, ``"s_flim"``, ``"g_esp"``,
+        ``"s_esp"`` (2D, con ``NaN`` en el fondo).
+    verdad : dict
+        - ``"labels"`` : numpy.ndarray 2D int — segmentación de verdad de terreno
+          (0 = fondo; partículas en contacto llevan labels distintos).
+        - ``"polimero"`` : dict[int, str] — polímero (o ``"no_clasificable"``) de cada label.
+    """
+    from skimage.segmentation import relabel_sequential
+
+    rng = np.random.default_rng(semilla)
+    alto, ancho = forma
+    yy, xx = np.mgrid[0:alto, 0:ancho].astype(float)
+    margen = int(np.ceil(radio_px[1] * 2))
+    sep_min = 2.3 * radio_px[1]
+
+    centros_fusion = centroides_referencia("fusion")
+    centro_organico = np.mean(list(centros_fusion.values()), axis=0) + 0.22
+
+    plan: list[tuple[str, np.ndarray, float]] = []
+    for p in POLIMEROS:
+        plan += [("polimero", centros_fusion[p], 1.0) for _ in range(n_por_polimero)]
+    plan += [("organico", centro_organico, 3.0) for _ in range(n_materia_organica)]
+    rng.shuffle(plan)
+
+    # Centros de las partículas "sueltas": rechazo por distancia mínima.
+    posiciones: list[tuple[float, float]] = []
+    radios: list[float] = []
+    for tipo, _, _ in plan:
+        radio_base = rng.uniform(*radio_px) * (1.6 if tipo == "organico" else 1.0)
+        for _ in range(200):
+            cy, cx = rng.uniform(margen, alto - margen), rng.uniform(margen, ancho - margen)
+            if all((cy - py) ** 2 + (cx - px) ** 2 > sep_min**2 for py, px in posiciones):
+                break
+        posiciones.append((cy, cx))
+        radios.append(radio_base)
+
+    # Partículas de contacto: pegadas a una partícula de polímero ya colocada.
+    indices_polimero = [i for i, (t, _, _) in enumerate(plan) if t == "polimero"]
+    for _ in range(n_pares_contacto):
+        base = int(rng.choice(indices_polimero))
+        py, px = posiciones[base]
+        radio = radios[base]
+        angulo = rng.uniform(0, 2 * np.pi)
+        distancia = radio * rng.uniform(1.3, 1.6)
+        posiciones.append((py + distancia * np.sin(angulo), px + distancia * np.cos(angulo)))
+        radios.append(radio * rng.uniform(0.9, 1.1))
+        plan.append(plan[base])
+
+    intensidad = np.abs(rng.normal(fondo, sigma_fondo, forma))
+    acumulador = {c: np.zeros(forma) for c in CANALES_IMAGEN[1:]}
+    peso = np.zeros(forma)
+    contribuciones: list[np.ndarray] = []
+    codigos: list[str] = []
+
+    for (cy, cx), radio, (tipo, vector_phasor, factor_ruido) in zip(posiciones, radios, plan):
+        amplitud = rng.uniform(0.25, 0.4) if tipo == "organico" else rng.uniform(0.7, 1.0)
+        r2 = (yy - cy) ** 2 + (xx - cx) ** 2
+        contrib = amplitud * np.exp(-((r2 / (2.0 * radio**2)) ** 2))  # súper-gaussiana
+        intensidad += contrib
+        for i, canal in enumerate(CANALES_IMAGEN[1:]):
+            ruido = rng.normal(0.0, sigma_phasor * factor_ruido, forma)
+            acumulador[canal] += contrib * (vector_phasor[i] + ruido)
+        peso += contrib
+        contribuciones.append(contrib)
+        codigos.append(
+            "no_clasificable" if tipo == "organico"
+            else _codigo_de_centro(vector_phasor, centros_fusion)
+        )
+
+    canales: dict[str, np.ndarray] = {"intensidad": intensidad}
+    con_senal = peso > 0.08
+    for canal, acum in acumulador.items():
+        arr = np.full(forma, np.nan)
+        arr[con_senal] = acum[con_senal] / peso[con_senal]
+        canales[canal] = arr
+
+    pila = np.stack(contribuciones)
+    idx_blob = pila.argmax(axis=0)
+    es_particula = pila.max(axis=0) > 0.25
+    labels_crudos = np.where(es_particula, idx_blob + 1, 0).astype(np.int32)
+
+    # Descarta "medialunas" residuales: en un par en contacto, argmax deja al blob más
+    # tenue una porción diminuta que no es un objeto detectable por separado.
+    area_min_verdad = 40
+    for etiqueta in np.unique(labels_crudos[labels_crudos > 0]):
+        if (labels_crudos == etiqueta).sum() < area_min_verdad:
+            labels_crudos[labels_crudos == etiqueta] = 0
+
+    labels, adelante, _ = relabel_sequential(labels_crudos)
+    polimero = {
+        int(adelante[k + 1]): codigos[k]
+        for k in range(len(codigos))
+        if adelante[k + 1] > 0
+    }
+    return canales, {"labels": np.asarray(labels), "polimero": polimero}
+
+
+def _codigo_de_centro(vector: np.ndarray, centros: dict[str, np.ndarray]) -> str:
+    """Devuelve el polímero cuyo centroide de fusión coincide con ``vector``."""
+    for codigo, centro in centros.items():
+        if np.allclose(centro, vector):
+            return codigo
+    return "no_clasificable"

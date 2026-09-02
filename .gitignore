@@ -30,7 +30,7 @@ datos/muestras/*
 
 # Resultados generados
 resultados/
-ejemplos/salida_demo/
+ejemplos/salida_demo*/
 *.ome.tif
 
 # Editor / SO

@@ -20,9 +20,9 @@ LAMAE/LaSBI).
 | Fase | Descripción | Estado |
 |---|---|---|
 | 0 | Diseño y evaluación de dependencias | ✔ ([`docs/FASE_0_EVALUACION.md`](docs/FASE_0_EVALUACION.md)) |
-| 1 | Datos sintéticos + clasificador base (`calibracion`, `clasificador`, `metricas`) | ✔ — 27 tests en verde; resultados en [`docs/RESULTADOS_FASE1.md`](docs/RESULTADOS_FASE1.md) |
-| 2 | Segmentación (`segmentacion`, `features`) | pendiente |
-| 3 | Pipeline completo + reportes + CLI | pendiente |
+| 1 | Datos sintéticos + clasificador base (`calibracion`, `clasificador`, `metricas`) | ✔ — resultados en [`docs/RESULTADOS_FASE1.md`](docs/RESULTADOS_FASE1.md) |
+| 2 | Segmentación + features (`segmentacion`, `features`) | ✔ — IoU 0,81 (nivel FIMAP); resultados en [`docs/RESULTADOS_FASE2.md`](docs/RESULTADOS_FASE2.md) |
+| 3 | Pipeline completo + reportes + CLI + fusión | pendiente |
 | 4 | Integración napari | pendiente |
 | 5 | Validación (muestras ambientales / celulares), robustez, documentación | pendiente |
 
@@ -42,7 +42,7 @@ de eso**.
 ```mermaid
 flowchart LR
     C[".sdt / .czi de los 6 polímeros<br/>o CSV de phasores"] --> CAL["Calibración<br/>centroide + covarianza"]
-    M["Imagen de muestra<br/>(ambiental / celular)"] --> SEG["Segmentación<br/>K-means + watershed"]
+    M["Imagen de muestra<br/>(ambiental / celular)"] --> SEG["Segmentación<br/>Otsu / K-means + watershed"]
     SEG --> FEAT["Features por ROI<br/>phasor, intensidad, forma"]
     FEAT --> FUS["Fusión FLIM + espectral"]
     CAL --> CLF["Clasificador<br/>Mahalanobis / KNN / GMM"]
@@ -78,12 +78,42 @@ pred = clf.predecir(X)
 print(evaluar_clasificacion(y, pred).resumen())
 ```
 
+## Ejemplo end-to-end (Fase 2, imagen sintética)
+
+```python
+import sys; sys.path.insert(0, "tests")
+from datos_sinteticos import generar_imagen_muestra, generar_calibracion, _columnas
+from napari_mp_classifier import Calibracion, ClasificadorPhasor, segmentar
+from napari_mp_classifier.features import extraer_features, matriz_features
+
+canales, verdad = generar_imagen_muestra(semilla=0)
+labels = segmentar(canales["intensidad"],
+                   g_flim=canales["g_flim"], s_flim=canales["s_flim"],
+                   g_esp=canales["g_esp"], s_esp=canales["s_esp"])   # -> imagen de labels
+
+feats = extraer_features(labels, canales["intensidad"],
+                         g_flim=canales["g_flim"], s_flim=canales["s_flim"],
+                         g_esp=canales["g_esp"], s_esp=canales["s_esp"])
+
+df = generar_calibracion("fusion", n_por_polimero=60)
+cal = Calibracion.desde_dataframe(df, columnas=_columnas("fusion"))
+clf = ClasificadorPhasor(cal, estrategia="knn", confianza=0.99)
+clf.entrenar(df[_columnas("fusion")].to_numpy(), df["polimero"].to_numpy())
+
+X, columnas = matriz_features(feats, "fusion")
+feats["polimero_predicho"] = clf.predecir(X)
+print(feats[["area_px", "g_flim", "s_flim", "polimero_predicho"]])
+```
+
+Demo completa con figuras: `python ejemplos/demo_fase2.py`.
+
 ## Documentación
 
 - [`docs/ANTECEDENTES.md`](docs/ANTECEDENTES.md) — las 6 referencias y su influencia de diseño.
 - [`docs/FASE_0_EVALUACION.md`](docs/FASE_0_EVALUACION.md) — evaluación de `phasorpy` / `napari-phasors`.
 - [`docs/PIPELINE.md`](docs/PIPELINE.md) — flujo de datos y estado por etapa.
 - [`docs/RESULTADOS_FASE1.md`](docs/RESULTADOS_FASE1.md) — prueba del clasificador sobre datos sintéticos.
+- [`docs/RESULTADOS_FASE2.md`](docs/RESULTADOS_FASE2.md) — segmentación + features + clasificación por ROI.
 - [`docs/FORMATO_DATOS.md`](docs/FORMATO_DATOS.md) — formatos de entrada/salida.
 - [`docs/SPECTRAL_UNMIXING.md`](docs/SPECTRAL_UNMIXING.md) — unmixing de λ-stacks (opciones napari/Python).
 - [`docs/PREGUNTAS_DATOS.md`](docs/PREGUNTAS_DATOS.md) — pendientes con el equipo.

@@ -145,5 +145,138 @@ def evaluar_clasificacion(
         por_clase=por_clase,
         matriz_confusion=matriz_confusion,
         etiquetas=list(etiquetas),
-        n=int(len(y_verdadero)),
+        n=len(y_verdadero),
+    )
+
+
+# =========================================================================== segmentación
+
+
+@dataclass
+class ReporteSegmentacion:
+    """Resultado de :func:`evaluar_segmentacion`.
+
+    Attributes
+    ----------
+    iou_medio : float
+        IoU promedio de las ROIs verdaderas emparejadas (0 si ninguna se detectó).
+        Comparable con FIMAP (Ho et al. 2025: IoU 87,7 %).
+    precision_deteccion : float
+        Fracción de ROIs predichas que corresponden a una ROI verdadera (``1 - falsos
+        positivos``).
+    recall_deteccion : float
+        Fracción de ROIs verdaderas que fueron detectadas.
+    f1_deteccion : float
+        Media armónica de precisión y recall de detección.
+    n_verdaderas, n_predichas, n_emparejadas : int
+        Conteos de ROIs.
+    """
+
+    iou_medio: float
+    precision_deteccion: float
+    recall_deteccion: float
+    f1_deteccion: float
+    n_verdaderas: int
+    n_predichas: int
+    n_emparejadas: int
+
+    def resumen(self) -> str:
+        """Texto legible con las métricas de segmentación."""
+        return "\n".join(
+            [
+                f"ROIs verdaderas : {self.n_verdaderas}",
+                f"ROIs predichas  : {self.n_predichas}",
+                f"emparejadas     : {self.n_emparejadas}",
+                f"IoU medio       : {self.iou_medio:.3f}",
+                f"precisión det.  : {self.precision_deteccion:.3f}",
+                f"recall det.     : {self.recall_deteccion:.3f}",
+                f"F1 detección    : {self.f1_deteccion:.3f}",
+            ]
+        )
+
+
+def emparejar_rois(
+    labels_predicho: np.ndarray,
+    labels_verdadero: np.ndarray,
+    iou_min: float = 0.3,
+) -> dict[int, tuple[int, float]]:
+    """Empareja cada ROI verdadera con la ROI predicha de mayor solape (IoU).
+
+    Parameters
+    ----------
+    labels_predicho, labels_verdadero : numpy.ndarray of int
+        Imágenes de labels (``0`` = fondo).
+    iou_min : float, optional
+        IoU mínimo para aceptar un emparejamiento. Por defecto ``0.3``.
+
+    Returns
+    -------
+    dict[int, tuple[int, float]]
+        ``{label_verdadero: (label_predicho, iou)}`` solo para los pares con
+        ``iou >= iou_min``.
+    """
+    pred = np.asarray(labels_predicho, dtype=int)
+    verd = np.asarray(labels_verdadero, dtype=int)
+
+    areas_pred = {int(i): int((pred == i).sum()) for i in np.unique(pred) if i > 0}
+    emparejamiento: dict[int, tuple[int, float]] = {}
+    for etiqueta_v in np.unique(verd):
+        if etiqueta_v == 0:
+            continue
+        mascara_v = verd == etiqueta_v
+        area_v = int(mascara_v.sum())
+        solapados, cuentas = np.unique(pred[mascara_v], return_counts=True)
+        mejor_iou, mejor_pred = 0.0, 0
+        for etiqueta_p, interseccion in zip(solapados, cuentas):
+            if etiqueta_p == 0:
+                continue
+            union = area_v + areas_pred[int(etiqueta_p)] - int(interseccion)
+            iou = int(interseccion) / union if union else 0.0
+            if iou > mejor_iou:
+                mejor_iou, mejor_pred = iou, int(etiqueta_p)
+        if mejor_iou >= iou_min:
+            emparejamiento[int(etiqueta_v)] = (mejor_pred, mejor_iou)
+    return emparejamiento
+
+
+def evaluar_segmentacion(
+    labels_predicho: np.ndarray,
+    labels_verdadero: np.ndarray,
+    iou_min: float = 0.5,
+) -> ReporteSegmentacion:
+    """Calcula IoU medio y precisión/recall de detección de una segmentación.
+
+    Parameters
+    ----------
+    labels_predicho, labels_verdadero : numpy.ndarray of int
+        Imágenes de labels (``0`` = fondo).
+    iou_min : float, optional
+        IoU mínimo para contar una ROI verdadera como detectada. Por defecto ``0.5``.
+
+    Returns
+    -------
+    ReporteSegmentacion
+    """
+    n_verd = int(len(np.unique(labels_verdadero)) - (1 if 0 in labels_verdadero else 0))
+    n_pred = int(len(np.unique(labels_predicho)) - (1 if 0 in labels_predicho else 0))
+
+    emparejadas = emparejar_rois(labels_predicho, labels_verdadero, iou_min=iou_min)
+    n_emp = len(emparejadas)
+    ious = [iou for _, iou in emparejadas.values()]
+
+    recall = n_emp / n_verd if n_verd else float("nan")
+    precision = n_emp / n_pred if n_pred else float("nan")
+    if precision and recall and np.isfinite(precision) and np.isfinite(recall):
+        f1 = 2 * precision * recall / (precision + recall)
+    else:
+        f1 = 0.0
+
+    return ReporteSegmentacion(
+        iou_medio=float(np.mean(ious)) if ious else 0.0,
+        precision_deteccion=float(precision),
+        recall_deteccion=float(recall),
+        f1_deteccion=float(f1),
+        n_verdaderas=n_verd,
+        n_predichas=n_pred,
+        n_emparejadas=n_emp,
     )

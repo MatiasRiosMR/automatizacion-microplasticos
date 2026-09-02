@@ -11,7 +11,7 @@ flowchart TD
 
     subgraph MUE["Análisis de una muestra"]
         B1["Imagen de muestra NR<br/>(ambiental / con células)"]
-        B2["segmentacion.py<br/>K-means + watershed + máscara celular"]
+        B2["segmentacion.py<br/>Otsu / K-means + watershed + máscara celular"]
         B3["features.py<br/>phasor medio, intensidad, tamaño, forma por ROI"]
         B4["fusion.py<br/>[g_flim, s_flim, g_esp, s_esp] por ROI"]
         B1 --> B2 --> B3 --> B4
@@ -40,10 +40,11 @@ flowchart TD
 | Calibración (centroide + covarianza) | `calibracion.py` | 1 | **hecho** |
 | Clasificación + "no clasificable" | `clasificador.py` | 1 | **hecho** (centroide / KNN / GMM) |
 | Métricas estándar | `metricas.py` | 1 | **hecho** |
-| Segmentación de ROIs | `segmentacion.py` | 2 | pendiente |
-| Features por ROI | `features.py` | 2 | pendiente |
-| Fusión FLIM + espectral | `fusion.py` | 3 | pendiente (calibración 4D ya soportada) |
-| CSV + gráficos + resumen | `reportes.py` | 3 | parcial (CSV y métricas a disco) |
+| Segmentación de ROIs | `segmentacion.py` | 2 | **hecho** (Otsu / K-means FIMAP + watershed + máscara celular; IoU 0,81) |
+| Features por ROI | `features.py` | 2 | **hecho** (phasor por ROI + forma + intensidad + dispersión) |
+| Métricas de segmentación | `metricas.py` | 2 | **hecho** (IoU, precisión/recall de detección) |
+| Fusión FLIM + espectral | `fusion.py` | 3 | pendiente (calibración 4D y features 4D ya soportadas) |
+| CSV + gráficos + resumen | `reportes.py` | 3 | parcial (CSV, métricas y `figura_segmentacion` a disco) |
 | CLI `classify` | `cli.py` | 3 | esqueleto |
 | Plugin napari | `napari_integracion/` | 4 | pendiente |
 

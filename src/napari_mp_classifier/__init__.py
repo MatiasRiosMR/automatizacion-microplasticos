@@ -17,13 +17,18 @@ POLIMEROS: tuple[str, ...] = ("PET", "HDPE", "PVC", "LDPE", "PP", "PS")
 # Etiqueta reservada para partículas que caen fuera de los clusters conocidos.
 NO_CLASIFICABLE: str = "no_clasificable"
 
-from .calibracion import Calibracion  # noqa: E402
-from .clasificador import ClasificadorPhasor  # noqa: E402
+from .calibracion import Calibracion
+from .clasificador import ClasificadorPhasor
+from .features import extraer_features, matriz_features
+from .segmentacion import segmentar
 
 __all__ = [
-    "__version__",
-    "POLIMEROS",
     "NO_CLASIFICABLE",
+    "POLIMEROS",
     "Calibracion",
     "ClasificadorPhasor",
+    "__version__",
+    "extraer_features",
+    "matriz_features",
+    "segmentar",
 ]

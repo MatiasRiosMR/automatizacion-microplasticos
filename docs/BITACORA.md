@@ -110,9 +110,55 @@ Registro cronológico de decisiones y avances. Entradas nuevas arriba.
 - Se planifica módulo `desmezcla.py` (Fase 3, adelantable a Fase 2 para muestras de
   fagocitos): separar fracción NR-MP de autofluorescencia antes de clasificar.
 
+## 2026-09-02 — Reescritura de historia + Fase 2
+
+### Limpieza de historia de git
+
+- Se sacaron de **todos** los commits (con `git filter-repo`): `CLAUDE.md`,
+  `prompt_claude_code_plan_de_trabajo.md`, `.claude/settings.json`. Siguen en el disco
+  (untracked, ignorados). Force-push a `origin/master` (`59e7a73` → `232fad0`). Backup de
+  la historia previa en un bundle local.
+- Quien tenga un clon debe `git fetch && git reset --hard origin/master` o re-clonar.
+
+### Fase 2 — segmentación + features  ✔
+
+- **`segmentacion.py`**: `segmentar_umbral` (Otsu/Li/fijo), `segmentar_kmeans`
+  (`[intensidad, g, s]` por píxel, enfoque FIMAP), `separar_contacto` (watershed sobre la
+  transformada de distancia), `segmentar` (orquestador: umbral|kmeans → limpieza → watershed
+  → filtro de tamaño), `restringir_a_mascara` (ROIs dentro de la máscara celular, para
+  fagocitos — Park et al. 2020). Default `metodo="umbral"` (mejor recall/IoU sobre sintético).
+- **`features.py`**: `extraer_features` → DataFrame por ROI con phasor FLIM/espectral
+  (mediana espacial vía `phasorpy.phasor.phasor_center`), dispersión intra-ROI, intensidad,
+  área (px/µm²), excentricidad, solidez, extensión, relación de aspecto, perímetro,
+  centroide. `matriz_features` arma la `X` en el orden del clasificador.
+- **`metricas.py`**: `evaluar_segmentacion` (IoU medio, precisión/recall de detección),
+  `emparejar_rois` (IoU máximo verdad↔predicho).
+- **`reportes.py`**: `figura_segmentacion` (imagen de intensidad + ROIs, contorno o
+  coloreadas por polímero predicho).
+- **`tests/datos_sinteticos.py`**: `generar_imagen_muestra` — campo 320×320 con blobs
+  súper-gaussianos (6 polímeros + materia orgánica + pares en contacto) + phasor por píxel
+  + verdad de terreno (labels + polímero por label).
+- `ejemplos/demo_fase2.py` + `docs/RESULTADOS_FASE2.md`. **+21 tests (54 en verde).**
+  `ruff` limpio en todo el repo (se aplicaron sus fixes también a archivos previos: orden
+  de imports, comillas en anotaciones de tipo con `from __future__ import annotations`).
+
+### Resultados clave (10 imágenes sintéticas)
+
+- Segmentación (umbral): **IoU 0,81 ± 0,02** (nivel FIMAP: 0,877), precisión detección
+  0,90, recall 0,77. K-means: IoU 0,77, precisión 0,92, recall 0,69 (usa la firma de
+  phasor → más precisión, menos recall).
+- **El clasificador de la Fase 1 se traslada sin cambios**: exactitud **0,996 ± 0,012**
+  sobre ROIs de polímero bien segmentadas → el cuello de botella es la segmentación.
+- **Hallazgo**: el rechazo de materia orgánica a nivel de ROI es más ruidoso que en la
+  Fase 1 (0,63 ± 0,30 vs. 0,975), porque el phasor de ROI es la mediana de cientos de
+  píxeles (casi sin dispersión) y el núcleo brillante de un cuerpo orgánico puede caer
+  dentro del umbral. → En la Fase 3 hace falta `desmezcla.py` (`phasorpy.component`) antes
+  de clasificar para matrices complejas, y/o usar la dispersión intra-ROI como feature.
+
 ### Próximo
 
 - Confirmar con el equipo las respuestas de `docs/PREGUNTAS_DATOS.md`.
 - Recibir `.sdt` y `.czi` de ejemplo → implementar `io_crudo.py` y validar la calibración
   real contra la sintética.
-- Fase 2: segmentación (`segmentacion.py` + `features.py`).
+- Fase 3: `fusion.py` (fusión por ROI), pipeline `cli.py classify` end-to-end, `desmezcla.py`,
+  informe unificado.

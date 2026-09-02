@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+from datos_sinteticos import generar_calibracion, generar_imagen_muestra, generar_particulas
 
 from napari_mp_classifier import Calibracion, ClasificadorPhasor
 from napari_mp_classifier.metricas import evaluar_clasificacion
@@ -10,11 +11,12 @@ from napari_mp_classifier.reportes import (
     figura_matriz_confusion,
     figura_metricas_por_clase,
     figura_phasores,
+    figura_segmentacion,
     guardar_figura,
     guardar_reporte_metricas,
     resultados_a_dataframe,
 )
-from datos_sinteticos import generar_calibracion, generar_particulas
+from napari_mp_classifier.segmentacion import segmentar
 
 
 def _caso(modalidad, columnas):
@@ -98,3 +100,16 @@ def test_figura_matriz_confusion_normalizar_invalido():
     _, _, _, _, rep = _caso("flim", ["g_flim", "s_flim"])
     with pytest.raises(ValueError):
         figura_matriz_confusion(rep, normalizar="columna")
+
+
+def test_figura_segmentacion(tmp_path):
+    canales, _ = generar_imagen_muestra(semilla=0)
+    labels = segmentar(canales["intensidad"], metodo="umbral")
+
+    fig_bordes = figura_segmentacion(canales["intensidad"], labels)
+    assert len(fig_bordes.axes) == 1
+
+    etiquetas = {int(l): ("PET" if l % 2 else "no_clasificable") for l in np.unique(labels[labels > 0])}
+    fig_color = figura_segmentacion(canales["intensidad"], labels, etiquetas_por_label=etiquetas)
+    rutas = guardar_figura(fig_color, tmp_path / "seg", formatos=("png",))
+    assert rutas[0].exists() and rutas[0].stat().st_size > 0

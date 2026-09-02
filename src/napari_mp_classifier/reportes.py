@@ -8,11 +8,12 @@ Dos familias de salida:
   :func:`figura_matriz_confusion`, :func:`figura_metricas_por_clase`,
   :func:`figura_comparacion`): diagrama de phasores con los clusters de referencia y las
   partículas clasificadas, matriz de confusión, barras de métricas por polímero y
-  comparación entre modalidades/estrategias. Todas comparten paleta, tipografía y estilo
-  (:data:`ESTILO_PUBLICACION`) y se guardan en varios formatos con :func:`guardar_figura`.
+  comparación entre modalidades/estrategias, y overlay de la imagen de muestra con las
+  ROIs segmentadas y etiquetadas (:func:`figura_segmentacion`). Todas comparten paleta,
+  tipografía y estilo (:data:`ESTILO_PUBLICACION`) y se guardan en varios formatos con
+  :func:`guardar_figura`.
 
-Pendiente (Fase 3): overlay de la imagen con ROIs etiquetadas, resumen estadístico por
-muestra.
+Pendiente (Fase 3): resumen estadístico por muestra, informe HTML/PDF unificado.
 
 Todo reporte de resultados incluye **siempre** las métricas estándar de
 :mod:`napari_mp_classifier.metricas`, no solo el CSV de asignaciones
@@ -593,6 +594,76 @@ def figura_comparacion(
         if titulo:
             fig.suptitle(titulo, y=1.08, fontsize=13, fontweight="bold")
         fig.tight_layout(rect=(0, 0, 1, 0.92))
+    return fig
+
+
+def figura_segmentacion(
+    intensidad: np.ndarray,
+    labels: np.ndarray,
+    *,
+    etiquetas_por_label: dict[int, str] | None = None,
+    titulo: str | None = "Segmentación de la muestra",
+):
+    """Imagen de intensidad con las ROIs segmentadas superpuestas y etiquetadas.
+
+    Parameters
+    ----------
+    intensidad : numpy.ndarray, shape (alto, ancho)
+        Imagen de intensidad de Nile Red (se muestra en escala de grises).
+    labels : numpy.ndarray of int, shape (alto, ancho)
+        Segmentación (``0`` = fondo).
+    etiquetas_por_label : dict[int, str], optional
+        Polímero (o ``"no_clasificable"``) asignado a cada label. Si se pasa, cada ROI se
+        pinta con el color de su polímero (:data:`PALETA_POLIMEROS`) y se rotula; si no,
+        se dibuja solo el contorno de cada ROI.
+    titulo : str, optional
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+    """
+    import matplotlib.patheffects as pe
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import to_rgba
+    from skimage.measure import regionprops
+    from skimage.segmentation import find_boundaries
+
+    intensidad = np.asarray(intensidad, dtype=float)
+    labels = np.asarray(labels, dtype=int)
+    _contorno = [pe.withStroke(linewidth=2.2, foreground="black")]
+
+    with plt.rc_context(ESTILO_PUBLICACION):
+        fig, ax = plt.subplots(figsize=(6.4, 6.4))
+        ax.grid(False)
+        ax.imshow(intensidad, cmap="gray", interpolation="nearest")
+
+        if etiquetas_por_label is None:
+            bordes = find_boundaries(labels, mode="outer")
+            capa = np.zeros((*labels.shape, 4))
+            capa[bordes] = to_rgba("#ff2d2d", 0.9)
+            ax.imshow(capa, interpolation="nearest")
+        else:
+            capa = np.zeros((*labels.shape, 4))
+            for region in regionprops(labels):
+                codigo = etiquetas_por_label.get(region.label, NO_CLASIFICABLE)
+                color = (
+                    COLOR_NO_CLASIFICABLE if codigo == NO_CLASIFICABLE
+                    else PALETA_POLIMEROS.get(codigo, "#444444")
+                )
+                capa[labels == region.label] = to_rgba(color, 0.45)
+                fila, col = region.centroid
+                texto = "NC" if codigo == NO_CLASIFICABLE else codigo
+                ax.annotate(
+                    texto, (col, fila), color="white", fontsize=7, fontweight="bold",
+                    ha="center", va="center", path_effects=_contorno,
+                )
+            ax.imshow(capa, interpolation="nearest")
+
+        ax.set_xticks([])
+        ax.set_yticks([])
+        if titulo:
+            ax.set_title(titulo)
+        fig.tight_layout()
     return fig
 
 
