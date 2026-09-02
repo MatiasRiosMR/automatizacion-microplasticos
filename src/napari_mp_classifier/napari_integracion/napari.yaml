@@ -1,0 +1,15 @@
+name: napari-mp-classifier
+display_name: Clasificador de microplásticos por phasores
+contributions:
+  commands:
+    - id: napari-mp-classifier.widget_clasificador
+      title: Clasificar microplásticos
+      python_name: napari_mp_classifier.napari_integracion._widget:WidgetClasificador
+    - id: napari-mp-classifier.widget_phasores
+      title: Diagrama de phasores (back-projection)
+      python_name: napari_mp_classifier.napari_integracion._phasor_plot:PhasorPlotWidget
+  widgets:
+    - command: napari-mp-classifier.widget_clasificador
+      display_name: Clasificar microplásticos
+    - command: napari-mp-classifier.widget_phasores
+      display_name: Diagrama de phasores

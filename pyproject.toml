@@ -30,17 +30,21 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-cov>=4.1", "ruff>=0.5"]
+dev = ["pytest>=8.0", "pytest-cov>=4.1", "pytest-qt>=4.4", "ruff>=0.5"]
 napari = ["napari[all]>=0.4.19", "magicgui>=0.8", "qtpy>=2.4"]
 
 [project.scripts]
 napari-mp-classifier = "napari_mp_classifier.cli:main"
+
+[project.entry-points."napari.manifest"]
+napari-mp-classifier = "napari_mp_classifier.napari_integracion:napari.yaml"
 
 [project.urls]
 "Póster" = "UNER/CONICET - LAMAE/LaSBI"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/napari_mp_classifier"]
+artifacts = ["*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

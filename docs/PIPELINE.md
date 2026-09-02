@@ -48,7 +48,7 @@ flowchart TD
 | Pipeline seg→features→clasificación | `pipeline.py` | 3 | **hecho** (`analizar_muestra` → `ResultadoMuestra`) |
 | CSV + gráficos + resumen + informe unificado | `reportes.py` | 3 | **hecho** (`generar_reporte`: CSV + métricas + figuras + `resumen_muestra.md`) |
 | CLI `classify` | `cli.py` | 3 | **hecho** (sobre `.npz`; `.sdt`/`.czi` esperan `io_crudo`) |
-| Plugin napari | `napari_integracion/` | 4 | pendiente |
+| Plugin napari | `napari_integracion/` | 4 | **hecho** (widget de clasificación + phasor plot con back-projection; entorno `napari-mp-env`, py 3.12) |
 
 ## Regla de "no clasificable" (detalle)
 

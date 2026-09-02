@@ -7,10 +7,17 @@
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"          # desarrollo y tests
-# pip install -e ".[napari]"     # además, integración napari (Fase 4)
 ```
 
-Requiere Python 3.11+.
+Requiere Python 3.11+ (por `phasorpy >= 0.12`).
+
+Para el **plugin de napari** (Fase 4) hace falta Python 3.12 + Qt, en un entorno aparte:
+
+```bash
+conda create -n napari-mp-env python=3.12 && conda activate napari-mp-env
+pip install -e ".[dev,napari]"
+napari                          # Plugins → Clasificador de microplásticos por phasores
+```
 
 ## Uso como librería — clasificar contra los 6 polímeros
 
@@ -79,6 +86,22 @@ napari-mp-classifier classify muestra.npz \
 - Escribe en `--salida` el informe unificado: `asignaciones.csv`, `resumen_muestra.md`,
   métricas y figuras.
 - La lectura de `.sdt` / `.czi` crudos se habilita cuando esté `io_crudo.py` (datos reales).
+
+## Uso en napari (Fase 4)
+
+En el entorno `napari-mp-env`:
+
+1. Abrí napari y cargá las imágenes de la muestra como capas: la de **intensidad** de
+   Nile Red y las de coordenadas de phasor por píxel (`g_flim`, `s_flim`, `g_esp`,
+   `s_esp`; al menos un par).
+2. `Plugins → Clasificador de microplásticos por phasores`.
+3. En el widget: elegí la capa de intensidad y las de phasor, la ruta del CSV de
+   calibración, la estrategia y la confianza. **Clasificar**.
+4. Aparece la capa `clasificación MP` (Labels) con las partículas coloreadas por polímero
+   predicho; las que caen fuera de los clusters quedan en gris (`no_clasificable`).
+5. `Plugins → Diagrama de phasores`: muestra las ROIs sobre los clusters de referencia.
+   Click en un punto → selecciona esa partícula en el visor; seleccionar una partícula en
+   el visor → resalta su punto (back-projection).
 
 ## Separar Nile Red-MP de autofluorescencia (desmezcla)
 

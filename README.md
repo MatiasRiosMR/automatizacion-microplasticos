@@ -23,7 +23,7 @@ LAMAE/LaSBI).
 | 1 | Datos sintéticos + clasificador base (`calibracion`, `clasificador`, `metricas`) | ✔ — resultados en [`docs/RESULTADOS_FASE1.md`](docs/RESULTADOS_FASE1.md) |
 | 2 | Segmentación + features (`segmentacion`, `features`) | ✔ — IoU 0,81 (nivel FIMAP); resultados en [`docs/RESULTADOS_FASE2.md`](docs/RESULTADOS_FASE2.md) |
 | 3 | Pipeline + reportes + CLI + fusión + desmezcla (`pipeline`, `fusion`, `desmezcla`, `cli`) | ✔ — resultados en [`docs/RESULTADOS_FASE3.md`](docs/RESULTADOS_FASE3.md) |
-| 4 | Integración napari | pendiente |
+| 4 | Plugin de napari (`napari_integracion`: widget de clasificación + phasor plot con back-projection) | ✔ — resultados en [`docs/RESULTADOS_FASE4.md`](docs/RESULTADOS_FASE4.md) |
 | 5 | Validación (muestras ambientales / celulares), robustez, documentación | pendiente |
 
 ## Instalación
@@ -33,9 +33,17 @@ pip install -e ".[dev]"
 pytest
 ```
 
-Python 3.11+. Depende de [`phasorpy`](https://www.phasorpy.org) para la lectura de
-formatos crudos (`.sdt`, `.czi`, …) y el cálculo de phasores — **no se reimplementa nada
-de eso**.
+Python 3.11+ (por `phasorpy >= 0.12`). Depende de [`phasorpy`](https://www.phasorpy.org)
+para la lectura de formatos crudos (`.sdt`, `.czi`, …) y el cálculo de phasores — **no se
+reimplementa nada de eso**.
+
+Para el plugin de napari (Fase 4) hace falta un entorno con Python 3.12 + Qt:
+
+```bash
+conda create -n napari-mp-env python=3.12 && conda activate napari-mp-env
+pip install -e ".[dev,napari]"
+napari                     # Plugins → Clasificador de microplásticos por phasores
+```
 
 ## Flujo de datos
 
@@ -138,6 +146,7 @@ Demo con fusión y desmezcla: `python ejemplos/demo_fase3.py`.
 - [`docs/RESULTADOS_FASE1.md`](docs/RESULTADOS_FASE1.md) — prueba del clasificador sobre datos sintéticos.
 - [`docs/RESULTADOS_FASE2.md`](docs/RESULTADOS_FASE2.md) — segmentación + features + clasificación por ROI.
 - [`docs/RESULTADOS_FASE3.md`](docs/RESULTADOS_FASE3.md) — pipeline completo, fusión, desmezcla, CLI.
+- [`docs/RESULTADOS_FASE4.md`](docs/RESULTADOS_FASE4.md) — plugin de napari (widget + phasor plot con back-projection).
 - [`docs/FORMATO_DATOS.md`](docs/FORMATO_DATOS.md) — formatos de entrada/salida.
 - [`docs/SPECTRAL_UNMIXING.md`](docs/SPECTRAL_UNMIXING.md) — unmixing de λ-stacks (opciones napari/Python).
 - [`docs/PREGUNTAS_DATOS.md`](docs/PREGUNTAS_DATOS.md) — pendientes con el equipo.

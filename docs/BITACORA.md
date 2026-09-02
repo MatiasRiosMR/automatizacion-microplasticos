@@ -181,13 +181,28 @@ Registro cronológico de decisiones y avances. Entradas nuevas arriba.
   materia orgánica** → `enmascarar_por_fraccion` antes de segmentar debería estabilizar el
   rechazo de materia orgánica que hoy es ruidoso (0,65 ± 0,28).
 
+### Fase 4 — plugin de napari  ✔
+
+- Entorno dedicado **`napari-mp-env`** (conda, py 3.12, napari 0.9, phasorpy 0.12, PyQt6):
+  los envs con napari que ya había (`napari-flim` py 3.10, `mnp-phasor-env` phasorpy 0.4)
+  son incompatibles con `phasorpy >= 0.12` (que exige py ≥ 3.12).
+- `napari_integracion/`: `napari.yaml` (manifiesto npe2, 2 widgets), `_widget.py`
+  (`WidgetClasificador` → corre `analizar_muestra`, agrega capa `Labels` "clasificación MP"
+  coloreada por polímero con `DirectLabelColormap`; features y `ResultadoMuestra` en la
+  capa), `_phasor_plot.py` (`PhasorPlotWidget`: clusters de referencia + punto por ROI,
+  **back-projection bidireccional** capa↔plot, selector de plano FLIM/espectral).
+- `pyproject.toml`: entry-point `napari.manifest` + `pytest-qt` en `[dev]`.
+- `tests/test_napari_integracion.py` (6 tests, headless con `QT_QPA_PLATFORM=offscreen`,
+  se saltan si no hay napari). `ejemplos/demo_fase4.py`. `docs/RESULTADOS_FASE4.md`.
+- **84 tests en verde en `napari-mp-env`** (78 base + 6 napari); 78 + 1 skip en la base.
+- Limitación: las capturas del lienzo de napari necesitan display real (OpenGL); en
+  headless se omiten. La lógica queda cubierta por los tests.
+
 ### Próximo
 
 - Confirmar con el equipo las respuestas de `docs/PREGUNTAS_DATOS.md`.
 - Recibir `.sdt` y `.czi` de ejemplo → implementar `io_crudo.py` y validar la calibración
   real contra la sintética.
-- Fase 4: plugin napari (`napari_integracion/`) — widget de clasificación + capa Labels +
-  back-projection al phasor plot. **napari no está instalado y Qt es frágil en 3.14** → se
-  entrega el código con tests que no dependan de Qt, marcado "no probado en runtime".
-- Fase 5: robustez (envejecimiento Meyers 2024, ruido, desmezcla integrada), validación con
-  muestras reales cuando lleguen, manual + notebook.
+- Fase 5: robustez (envejecimiento Meyers 2024, ruido, desmezcla integrada al pipeline),
+  validación con muestras reales cuando lleguen, manual de usuario + notebook demo,
+  decisión formal sobre calibración virgen vs. envejecido.
