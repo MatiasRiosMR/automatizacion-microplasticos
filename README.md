@@ -1,19 +1,54 @@
 # napari-mp-classifier
 
-Clasificación automática de **microplásticos recalcitrantes** teñidos con Nile Red,
+Clasificación automática de **microplásticos (MP) recalcitrantes** teñidos con Nile Red,
 contra 6 polímeros de referencia (♳ PET, ♴ HDPE, ♵ PVC, ♶ LDPE, ♷ PP, ♸ PS), usando
 **diagramas de phasores** de dos modalidades de microscopía de fluorescencia:
 
-- **Espectral (λ-stack)** — espectro de emisión de Nile Red.
-- **FLIM (dominio temporal)** — tiempo de vida de fluorescencia de Nile Red.
-
-Corresponde a la Fig. 5 del póster *"Clasificación automática de microplásticos
-recalcitrantes basado en microscopía de fluorescencia espectral y FLIM"* (UNER/CONICET —
-LAMAE/LaSBI).
+- **Espectral (λ-stack)** — espectro de emisión de Nile Red (phasor espectral).
+- **FLIM (dominio temporal)** — tiempo de vida de fluorescencia de Nile Red (phasor FLIM, coordenadas *g*, *s*).
 
 > **Diferenciación frente al estado del arte:** ningún antecedente combina FLIM +
 > espectral simultáneamente (Sancataldo 2020 usa solo FLIM; Meyers 2022 solo RGB; FIMAP
 > 2025 solo espectral/NN). Ver [`docs/ANTECEDENTES.md`](docs/ANTECEDENTES.md).
+
+## Contexto — póster UNER/CONICET — LAMAE/LaSBI
+
+Este módulo implementa la **Fig. 5** del póster *"Clasificación automática de microplásticos
+recalcitrantes basado en microscopía de fluorescencia espectral y FLIM"* (UNER/CONICET —
+LAMAE/LaSBI).
+
+**Fundamento.** El colorante hidrofóbico **Nile Red (NR)** tiñe los microplásticos
+recalcitrantes; su respuesta (espectro de emisión y tiempo de vida de fluorescencia)
+depende de la polaridad y la rigidez de la matriz polimérica, y por eso **difiere entre
+polímeros**. Caracterizando esa respuesta con microscopía multimodal se obtiene, para cada
+uno de los 6 polímeros de referencia, una **región separable (cluster)** en el plano de
+phasores. El póster muestra la identificación por FLIM + phasores en la Fig. 2
+(cf. Sancataldo et al. 2020); esta Fig. 5 la **extiende sumando la modalidad espectral** y
+la convierte en un clasificador automático.
+
+**Qué resuelve.** Usar la firma de referencia (los 6 clusters calibrados) para clasificar
+partículas desconocidas en **matrices complejas**, donde la clave es distinguir la señal de
+NR-MP de todo lo demás:
+
+- **Muestras ambientales** — con materia orgánica y otras partículas fluorescentes de fondo
+  (celulosa, quitina, restos biológicos).
+- **Cultivos primarios de fagocitos humanos** — monocitos (Mo) y neutrófilos (PMN) que
+  fagocitaron MP: hay que separar la señal de NR-MP fagocitado de la **autofluorescencia
+  celular** (cf. Park et al. 2020).
+
+Lo que cae fuera de todos los clusters conocidos se marca **`no_clasificable`** en vez de
+forzar una asignación — es la barrera contra los falsos positivos de "plástico".
+
+**Calibración con polímero envejecido.** Los 6 estándares de referencia se miden sobre
+polímero degradado de forma controlada (**abrasión + H₂O₂**, opcionalmente **UV**), no
+sobre polímero virgen, para que calibración y muestra ambiental estén en el mismo estado de
+meteorización. Esto sortea el modo de falla reportado por Meyers et al. (2024). Detalle y
+análisis de robustez en [`docs/DECISION_CALIBRACION.md`](docs/DECISION_CALIBRACION.md) y
+[`docs/RESULTADOS_FASE5.md`](docs/RESULTADOS_FASE5.md).
+
+**Métricas comparables con la literatura.** `metricas.py` reporta exactitud, precisión,
+recall, F1 y matriz de confusión en el mismo formato que Meyers et al. (2022, 88,1 % en
+identificación de polímero) y Ho et al. (2025 / FIMAP, F1 = 94,7 %, IoU = 87,7 %).
 
 ## Estado
 
@@ -25,6 +60,24 @@ LAMAE/LaSBI).
 | 3 | Pipeline + reportes + CLI + fusión + desmezcla (`pipeline`, `fusion`, `desmezcla`, `cli`) | ✔ — resultados en [`docs/RESULTADOS_FASE3.md`](docs/RESULTADOS_FASE3.md) |
 | 4 | Plugin de napari (`napari_integracion`: widget de clasificación + phasor plot con back-projection) | ✔ — resultados en [`docs/RESULTADOS_FASE4.md`](docs/RESULTADOS_FASE4.md) |
 | 5 | Robustez (envejecimiento, ruido, `confianza`), flujo de fagocitos, notebook demo | ✔ — [`docs/RESULTADOS_FASE5.md`](docs/RESULTADOS_FASE5.md); validación con muestras reales pendiente de datos |
+
+## Resultados sobre datos sintéticos
+
+Los clusters sintéticos usan tiempos de vida y posiciones espectrales *ilustrativos* (no
+medidos); los números se recalibran con los datos reales del equipo. Aun así fijan el
+comportamiento esperado del método:
+
+| Métrica | Valor | Comparación |
+|---|---|---|
+| Exactitud de clasificación (fusión FLIM+espectral, KNN) | **0,987** | Meyers 2022: 0,881 · FIMAP 2025: F1 0,947 |
+| F1 sobre polímeros | **0,990** | |
+| Rechazo de materia orgánica como `no_clasificable` | 0,975 | FIMAP excluye materia orgánica |
+| IoU de segmentación | 0,81 | FIMAP: 0,877 |
+| Exactitud sobre ROIs de polímero bien segmentadas (pipeline completo) | 0,994 | |
+
+**La fusión FLIM + espectral supera a cualquier modalidad sola** —y esa ventaja se
+mantiene bajo desajuste de envejecimiento entre muestra y calibración—, que es la tesis
+del póster. Detalle por fase en `docs/RESULTADOS_FASE*.md`.
 
 ## Instalación
 
