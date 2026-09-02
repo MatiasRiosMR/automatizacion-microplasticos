@@ -145,7 +145,7 @@ class ClasificadorPhasor:
         self._gmm_cov_inv: list[np.ndarray] | None = None
 
     # ------------------------------------------------------------------ entrenamiento
-    def entrenar(self, X: np.ndarray | None = None, y: np.ndarray | None = None) -> "ClasificadorPhasor":
+    def entrenar(self, X: np.ndarray | None = None, y: np.ndarray | None = None) -> ClasificadorPhasor:
         """Ajusta las estructuras internas según la estrategia.
 
         Parameters
@@ -169,7 +169,7 @@ class ClasificadorPhasor:
 
         return self._entrenar_gmm(X)
 
-    def _entrenar_knn(self, X, y) -> "ClasificadorPhasor":
+    def _entrenar_knn(self, X, y) -> ClasificadorPhasor:
         if X is None or y is None:
             raise ValueError("La estrategia 'knn' necesita X e y con las mediciones de calibración.")
         X = np.asarray(X, dtype=float)
@@ -193,7 +193,7 @@ class ClasificadorPhasor:
             self.umbral_knn_ = float(np.quantile(todas, self.confianza) * self.margen_knn)
         return self
 
-    def _entrenar_gmm(self, X) -> "ClasificadorPhasor":
+    def _entrenar_gmm(self, X) -> ClasificadorPhasor:
         n = len(self.etiquetas_)
         self._gmm = GaussianMixture(
             n_components=n,

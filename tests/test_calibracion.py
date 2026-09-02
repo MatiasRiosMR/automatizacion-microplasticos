@@ -3,9 +3,9 @@
 import numpy as np
 import pandas as pd
 import pytest
+from datos_sinteticos import generar_calibracion
 
 from napari_mp_classifier.calibracion import Calibracion
-from datos_sinteticos import generar_calibracion
 
 
 def test_desde_dataframe_flim():

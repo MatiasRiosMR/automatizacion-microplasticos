@@ -24,11 +24,12 @@ RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / "src"))
 sys.path.insert(0, str(RAIZ / "tests"))
 
-import numpy as np  # noqa: E402
+import numpy as np
+from datos_sinteticos import _columnas, generar_calibracion, generar_particulas
 
-from napari_mp_classifier import Calibracion, ClasificadorPhasor  # noqa: E402
-from napari_mp_classifier.metricas import evaluar_clasificacion  # noqa: E402
-from napari_mp_classifier.reportes import (  # noqa: E402
+from napari_mp_classifier import Calibracion, ClasificadorPhasor
+from napari_mp_classifier.metricas import evaluar_clasificacion
+from napari_mp_classifier.reportes import (
     figura_comparacion,
     figura_matriz_confusion,
     figura_metricas_por_clase,
@@ -37,7 +38,6 @@ from napari_mp_classifier.reportes import (  # noqa: E402
     guardar_reporte_metricas,
     resultados_a_dataframe,
 )
-from datos_sinteticos import _columnas, generar_calibracion, generar_particulas  # noqa: E402
 
 MODALIDADES = ("flim", "espectral", "fusion")
 ESTRATEGIAS = ("centroide", "knn", "gmm")

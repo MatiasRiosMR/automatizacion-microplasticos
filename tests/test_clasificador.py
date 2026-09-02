@@ -2,11 +2,11 @@
 
 import numpy as np
 import pytest
+from datos_sinteticos import generar_calibracion, generar_particulas
 
 from napari_mp_classifier import NO_CLASIFICABLE
 from napari_mp_classifier.calibracion import Calibracion
 from napari_mp_classifier.clasificador import ClasificadorPhasor
-from datos_sinteticos import generar_calibracion, generar_particulas
 
 
 def _calibracion(modalidad="flim", **kw):

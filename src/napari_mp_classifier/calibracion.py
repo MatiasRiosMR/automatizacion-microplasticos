@@ -85,7 +85,7 @@ class Calibracion:
         columnas: list[str] | tuple[str, ...] = COLUMNAS_FLIM,
         columna_etiqueta: str = COLUMNA_ETIQUETA,
         metadatos: dict | None = None,
-    ) -> "Calibracion":
+    ) -> Calibracion:
         """Construye una calibración a partir de un ``DataFrame`` de coordenadas.
 
         Parameters
@@ -146,7 +146,7 @@ class Calibracion:
         columnas: list[str] | tuple[str, ...] = COLUMNAS_FLIM,
         columna_etiqueta: str = COLUMNA_ETIQUETA,
         **kwargs_read_csv,
-    ) -> "Calibracion":
+    ) -> Calibracion:
         """Carga una calibración desde un CSV de coordenadas de phasor.
 
         Compatible con exportaciones de ``napari-phasors`` siempre que se indiquen los
