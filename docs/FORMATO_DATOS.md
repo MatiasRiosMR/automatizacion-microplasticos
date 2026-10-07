@@ -35,8 +35,11 @@ cal = Calibracion.cargar_phasores_csv(
   (longitud de onda). Sin calibración (la longitud de onda es absoluta). Necesita ≥ 3
   canales equiespaciados.
 
-El wrapper `io_crudo.py` unifica ambas rutas a `(g, s, intensidad)` 2D. **Pendiente**
-hasta que el equipo entregue archivos de ejemplo — ver `docs/PREGUNTAS_DATOS.md`.
+El wrapper `io_crudo.py` unifica ambas rutas en un `PhasoresImagen` (que se desempaca
+como `g, s, intensidad = ...`). **Implementado** y probado con datos reales del equipo —
+ver `docs/RESULTADOS_PRUEBA_LAMAE.md`. La calibración FLIM sigue necesitando una imagen
+de referencia de lifetime conocido; sin ella `phasores_desde_sdt` devuelve el phasor sin
+calibrar (`calibrado=False`).
 
 ## Entrada: muestra a clasificar
 

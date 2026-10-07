@@ -1,83 +1,132 @@
 # napari-mp-classifier
 
-Clasificación automática de **microplásticos (MP) recalcitrantes** teñidos con Nile Red,
+Clasificación automática de **microplásticos (MP) recalcitrantes** teñidos con Nile Red
 contra 6 polímeros de referencia (♳ PET, ♴ HDPE, ♵ PVC, ♶ LDPE, ♷ PP, ♸ PS), usando
 **diagramas de phasores** de dos modalidades de microscopía de fluorescencia:
 
-- **Espectral (λ-stack)** — espectro de emisión de Nile Red (phasor espectral).
-- **FLIM (dominio temporal)** — tiempo de vida de fluorescencia de Nile Red (phasor FLIM, coordenadas *g*, *s*).
+- **Espectral (λ-stack)**: espectro de emisión de Nile Red (phasor espectral).
+- **FLIM (dominio temporal)**: tiempo de vida de fluorescencia de Nile Red (phasor FLIM).
 
-> **Diferenciación frente al estado del arte:** ningún antecedente combina FLIM +
-> espectral simultáneamente (Sancataldo 2020 usa solo FLIM; Meyers 2022 solo RGB; FIMAP
-> 2025 solo espectral/NN). Ver [`docs/ANTECEDENTES.md`](docs/ANTECEDENTES.md).
+> **Diferenciación frente al estado del arte:** ningún antecedente combina FLIM y espectral
+> simultáneamente (Sancataldo 2020 usa solo FLIM; Meyers 2022 solo RGB; FIMAP 2025 solo
+> espectral/NN). Ver [`docs/ANTECEDENTES.md`](docs/ANTECEDENTES.md).
 
-## Contexto — póster UNER/CONICET — LAMAE/LaSBI
+## Marco institucional
 
-Este módulo implementa la **Fig. 5** del póster *"Clasificación automática de microplásticos
-recalcitrantes basado en microscopía de fluorescencia espectral y FLIM"* (UNER/CONICET —
-LAMAE/LaSBI).
+Este software se desarrolla en el marco de la **Beca del PID 6303** (Proyecto de
+Investigación y Desarrollo, Universidad Nacional de Entre Ríos):
+
+> **«Microplásticos atmosféricos inhalables. Métodos innovadores para caracterizar muestras
+> de aire ambiental y biodistribución bronquioalveolar basados en Microscopía de
+> fluorescencia multimodal»**
+>
+> Director: **Dr. Luis Pablo Schierloh**
+
+Implementa la **Fig. 5** del póster *«Clasificación automática de microplásticos
+recalcitrantes basado en microscopía de fluorescencia espectral y FLIM»*.
+
+**Autores del trabajo:** Narella Corona¹\*, Matías Ríos¹\*, Alejandro Escobar-Guardia¹,
+Julieta Moreno², Juan Etchart², Carolina Galleto¹·², Martín Blettler², Pablo Schierloh¹·²·³.
+
+1. Departamento de Biología, Facultad de Ingeniería (FIUNER), Universidad Nacional de Entre
+   Ríos (UNER).
+2. **LAMAE** (*Laboratorio de Microscopía Aplicada a Estudios Moleculares y Celulares*),
+   Instituto de Investigación y Desarrollo en Bioingeniería y Bioinformática (**IBB**),
+   UNER–CONICET.
+3. **LaSBI** (*Laboratorio de Salud y Bienestar Integral*), FIUNER, UNER.
+
+\* Igual contribución.
+
+**Desarrollo del software:** Matías Ríos, estudiante de la Licenciatura en Bioinformática
+(FIUNER).
+
+## Contexto científico
 
 **Fundamento.** El colorante hidrofóbico **Nile Red (NR)** tiñe los microplásticos
-recalcitrantes; su respuesta (espectro de emisión y tiempo de vida de fluorescencia)
-depende de la polaridad y la rigidez de la matriz polimérica, y por eso **difiere entre
-polímeros**. Caracterizando esa respuesta con microscopía multimodal se obtiene, para cada
-uno de los 6 polímeros de referencia, una **región separable (cluster)** en el plano de
-phasores. El póster muestra la identificación por FLIM + phasores en la Fig. 2
-(cf. Sancataldo et al. 2020); esta Fig. 5 la **extiende sumando la modalidad espectral** y
-la convierte en un clasificador automático.
+recalcitrantes. Su respuesta, es decir el espectro de emisión y el tiempo de vida de
+fluorescencia, depende de la polaridad y la rigidez de la matriz polimérica, y por eso
+**difiere entre polímeros**. Al caracterizar esa respuesta con microscopía multimodal, cada
+uno de los 6 polímeros de referencia ocupa una **región separable (cluster)** en el plano
+de phasores. La Fig. 2 del póster muestra la identificación por FLIM y phasores (cf.
+Sancataldo et al. 2020). La Fig. 5 **suma la modalidad espectral** y la convierte en un
+clasificador automático.
 
-**Qué resuelve.** Usar la firma de referencia (los 6 clusters calibrados) para clasificar
-partículas desconocidas en **matrices complejas**, donde la clave es distinguir la señal de
-NR-MP de todo lo demás:
+**Qué resuelve.** Usa la firma de referencia (los 6 clusters calibrados) para clasificar
+partículas desconocidas en **matrices complejas**. La clave es distinguir la señal de NR-MP
+de todo lo demás:
 
-- **Muestras ambientales** — con materia orgánica y otras partículas fluorescentes de fondo
-  (celulosa, quitina, restos biológicos).
-- **Cultivos primarios de fagocitos humanos** — monocitos (Mo) y neutrófilos (PMN) que
-  fagocitaron MP: hay que separar la señal de NR-MP fagocitado de la **autofluorescencia
-  celular** (cf. Park et al. 2020).
+- **Muestras ambientales** (aire, agua), con materia orgánica y otras partículas
+  fluorescentes de fondo (celulosa, quitina, restos biológicos).
+- **Cultivos primarios de fagocitos humanos**: monocitos (Mo) y neutrófilos (PMN) que
+  fagocitaron MP. Ahí hay que separar la señal de NR-MP fagocitado de la
+  **autofluorescencia celular** (cf. Park et al. 2020). Es la base del estudio de
+  biodistribución bronquioalveolar del PID.
 
 Lo que cae fuera de todos los clusters conocidos se marca **`no_clasificable`** en vez de
-forzar una asignación — es la barrera contra los falsos positivos de "plástico".
+forzar una asignación. Es la barrera contra los falsos positivos de «plástico».
 
-**Calibración con polímero envejecido.** Los 6 estándares de referencia se miden sobre
-polímero degradado de forma controlada (**abrasión + H₂O₂**, opcionalmente **UV**), no
-sobre polímero virgen, para que calibración y muestra ambiental estén en el mismo estado de
-meteorización. Esto sortea el modo de falla reportado por Meyers et al. (2024). Detalle y
-análisis de robustez en [`docs/DECISION_CALIBRACION.md`](docs/DECISION_CALIBRACION.md) y
-[`docs/RESULTADOS_FASE5.md`](docs/RESULTADOS_FASE5.md).
+**Calibración con polímero envejecido.** Los 6 estándares se miden sobre polímero
+degradado de forma controlada (**abrasión + H₂O₂**, opcionalmente **UV**), para que
+calibración y muestra ambiental estén en el mismo estado de meteorización. Ver
+[`docs/DECISION_CALIBRACION.md`](docs/DECISION_CALIBRACION.md).
 
-**Métricas comparables con la literatura.** `metricas.py` reporta exactitud, precisión,
-recall, F1 y matriz de confusión en el mismo formato que Meyers et al. (2022, 88,1 % en
-identificación de polímero) y Ho et al. (2025 / FIMAP, F1 = 94,7 %, IoU = 87,7 %).
+## Estado actual del proyecto (octubre 2026)
 
-## Estado
+| Área | Estado |
+|---|---|
+| Lectura de datos crudos (`.sdt` Becker & Hickl, `.czi` Zeiss) | ✔ Probada con datos reales de LAMAE; elección de detector en `.sdt` multi-detector |
+| Calibración FLIM | ✔ **Con IRF, como SPCImage** (IRF sintética del flanco o medida). Validada por simulación: error 2–6 % entre 1 y 4 ns |
+| Segmentación y features por partícula | ✔ IoU 0,81 sobre datos sintéticos (FIMAP: 0,877) |
+| Clasificador (centroide/QDA, KNN, GMM) con rechazo «no clasificable» | ✔ Corregido tras la auditoría de octubre 2026 (umbral de Hotelling, QDA, NaN) |
+| Fusión FLIM + espectral | ✔ Por ROI (emparejamiento óptimo) y por decisión |
+| Informe por muestra (HTML interactivo + PDF) | ✔ [`docs/INFORMES.md`](docs/INFORMES.md) |
+| CLI y plugin de napari | ✔ |
+| Pruebas automáticas | ✔ 143 tests (137 sin napari + 6 de napari) |
+| **Calibración real de los 6 polímeros** | ⏳ **Pendiente de datos del equipo**: hoy no se puede clasificar una muestra real |
+| Validación con muestras reales (aire ambiental, fagocitos) | ⏳ Pendiente, depende de la calibración |
 
-| Fase | Descripción | Estado |
-|---|---|---|
-| 0 | Diseño y evaluación de dependencias | ✔ ([`docs/FASE_0_EVALUACION.md`](docs/FASE_0_EVALUACION.md)) |
-| 1 | Datos sintéticos + clasificador base (`calibracion`, `clasificador`, `metricas`) | ✔ — resultados en [`docs/RESULTADOS_FASE1.md`](docs/RESULTADOS_FASE1.md) |
-| 2 | Segmentación + features (`segmentacion`, `features`) | ✔ — IoU 0,81 (nivel FIMAP); resultados en [`docs/RESULTADOS_FASE2.md`](docs/RESULTADOS_FASE2.md) |
-| 3 | Pipeline + reportes + CLI + fusión + desmezcla (`pipeline`, `fusion`, `desmezcla`, `cli`) | ✔ — resultados en [`docs/RESULTADOS_FASE3.md`](docs/RESULTADOS_FASE3.md) |
-| 4 | Plugin de napari (`napari_integracion`: widget de clasificación + phasor plot con back-projection) | ✔ — resultados en [`docs/RESULTADOS_FASE4.md`](docs/RESULTADOS_FASE4.md) |
-| 5 | Robustez (envejecimiento, ruido, `confianza`), flujo de fagocitos, notebook demo | ✔ — [`docs/RESULTADOS_FASE5.md`](docs/RESULTADOS_FASE5.md); validación con muestras reales pendiente de datos |
+**Datos reales disponibles hoy:** una partícula de polietileno (PE) teñida con Nile Red,
+adquirida en FLIM (`.sdt`, dos detectores) y λ-stack (`.czi`). Con ellos se genera un
+**informe de caracterización**: área 214,5 µm², máximo de emisión 541 nm y τφ = 2,69 ns /
+τm = 2,95 ns con FLIM calibrado. No es una clasificación. Detalle en
+[`docs/RESULTADOS_PRUEBA_LAMAE.md`](docs/RESULTADOS_PRUEBA_LAMAE.md).
+
+**Qué falta del equipo** ([`docs/PREGUNTAS_DATOS.md`](docs/PREGUNTAS_DATOS.md)):
+1. La calibración de los 6 polímeros envejecidos (≥ 15 partículas por polímero).
+2. Qué banda de emisión registra cada detector FLIM.
+3. Una IRF medida por sesión, que es opcional pero recomendable.
+4. FLIM y espectral del mismo campo, para fusionar por partícula.
+5. Confirmar si el PE de la prueba es HDPE o LDPE.
 
 ## Resultados sobre datos sintéticos
 
-Los clusters sintéticos usan tiempos de vida y posiciones espectrales *ilustrativos* (no
-medidos); los números se recalibran con los datos reales del equipo. Aun así fijan el
-comportamiento esperado del método:
+Los clusters sintéticos usan tiempos de vida y posiciones espectrales *ilustrativos*, no
+medidos. La auditoría de octubre de 2026 ([`docs/AUDITORIA.md`](docs/AUDITORIA.md)) mostró
+que el escenario sintético original es demasiado fácil. Por eso se informan dos escenarios:
 
-| Métrica | Valor | Comparación |
-|---|---|---|
-| Exactitud de clasificación (fusión FLIM+espectral, KNN) | **0,987** | Meyers 2022: 0,881 · FIMAP 2025: F1 0,947 |
-| F1 sobre polímeros | **0,990** | |
-| Rechazo de materia orgánica como `no_clasificable` | 0,975 | FIMAP excluye materia orgánica |
-| IoU de segmentación | 0,81 | FIMAP: 0,877 |
-| Exactitud sobre ROIs de polímero bien segmentadas (pipeline completo) | 0,994 | |
+| Escenario (fusión FLIM + espectral) | Exactitud balanceada | F1 polímeros | Polímero rechazado por error | Materia orgánica aceptada |
+|---|---|---|---|---|
+| Original: clusters isotrópicos, materia orgánica lejos de todo | 0,99 (KNN) | 1,00 | 0,3 % | 1,1 % |
+| Original, con la estrategia por defecto (QDA + Hotelling) | 0,94 | 0,97 | 6,7 % ¹ | 0,3 % |
+| **Realista**: covarianzas distintas, 15 mediciones por polímero, autofluorescencia cerca de un polímero | **0,92** (QDA + Hotelling) | **0,93** | **1,3 %** | **51 %** |
 
-**La fusión FLIM + espectral supera a cualquier modalidad sola** —y esa ventaja se
-mantiene bajo desajuste de envejecimiento entre muestra y calibración—, que es la tesis
-del póster. Detalle por fase en `docs/RESULTADOS_FASE*.md`.
+Media de 10 (original) y 12 (realista) semillas, `confianza = 0,99`; detalle y desvíos en
+[`docs/AUDITORIA.md`](docs/AUDITORIA.md). ¹ En ese escenario las partículas de prueba son
+más ruidosas que la calibración (0,025 vs. 0,02); el umbral de Hotelling lo detecta y
+rechaza más. Con datos reales pasa lo mismo si la muestra tiene menos fotones o distinto
+envejecimiento que la calibración.
+
+En el escenario realista, la autofluorescencia que cae cerca de un polímero no se separa
+solo con un umbral de distancia (AUROC del rechazo 0,93). Hace falta elegir la `confianza`
+con datos de validación reales y sumar evidencia adicional. Es la principal línea de
+trabajo pendiente.
+
+**La fusión FLIM + espectral no queda por debajo de ninguna modalidad sola** en ningún
+escenario (exactitud balanceada, QDA + Hotelling). Supera con claridad a FLIM solo (0,94 vs.
+0,89 en el original y 0,92 vs. 0,84 en el realista). Frente al espectral solo, en cambio, la
+ventaja en el escenario realista es marginal (0,917 vs. 0,912, dentro del desvío). Para
+sostener la tesis del póster con datos reales hace falta que el FLIM aporte información
+que el espectral no tiene.
 
 ## Instalación
 
@@ -86,11 +135,12 @@ pip install -e ".[dev]"
 pytest
 ```
 
-Python 3.11+ (por `phasorpy >= 0.12`). Depende de [`phasorpy`](https://www.phasorpy.org)
-para la lectura de formatos crudos (`.sdt`, `.czi`, …) y el cálculo de phasores — **no se
-reimplementa nada de eso**.
+Requiere Python 3.11 o superior y [`phasorpy`](https://www.phasorpy.org) ≥ 0.12, que se usa
+para leer los formatos crudos y calcular los phasores; esa parte **no se reimplementa**.
+El PDF de los informes se genera con Chrome o Chromium en modo headless, si están
+instalados.
 
-Para el plugin de napari (Fase 4) hace falta un entorno con Python 3.12 + Qt:
+Para el plugin de napari hace falta un entorno con Python 3.12 y Qt:
 
 ```bash
 conda create -n napari-mp-env python=3.12 && conda activate napari-mp-env
@@ -98,116 +148,112 @@ pip install -e ".[dev,napari]"
 napari                     # Plugins → Clasificador de microplásticos por phasores
 ```
 
+## Uso rápido
+
+**Desde la terminal** (muestra en `.npz` con `intensidad` y los phasores por píxel):
+
+```bash
+napari-mp-classifier classify muestra.npz --calibracion calibracion.csv \
+    --salida resultados/ --nombre "Filtro aire 03" --escala-um-px 0.077
+```
+
+Escribe el CSV de asignaciones, las métricas, las figuras y el **informe por muestra**
+`informe.html` + `informe.pdf`. Opciones útiles:
+- `--modalidad flim|espectral` restringe el análisis a una modalidad.
+- `--calibracion cal.json` usa una calibración guardada con `Calibracion.guardar_json`.
+- `--sin-pdf` y `--sin-informe` omiten el PDF o el informe completo.
+
+**Desde Python:**
+
+```python
+from napari_mp_classifier import Calibracion, analizar_muestra
+from napari_mp_classifier.informe_html import generar_informe_html
+from napari_mp_classifier.io_crudo import phasores_desde_sdt, phasores_desde_czi
+
+flim = phasores_desde_sdt("muestra.sdt", calibrar_irf=True)   # detector con más fotones
+esp = phasores_desde_czi("muestra.czi")
+
+cal = Calibracion.cargar_json("calibracion_6_polimeros.json")
+resultado = analizar_muestra({"intensidad": esp.intensidad, "g_esp": esp.g, "s_esp": esp.s},
+                             cal, estrategia="centroide", escala_um_px=0.0767)
+generar_informe_html(resultado, {"intensidad": esp.intensidad}, "informe.html",
+                     nombre_muestra="Filtro aire 03", archivo="muestra.czi")
+```
+
+**Ejemplos listos para correr:**
+
+| Script | Qué hace |
+|---|---|
+| `ejemplos/demo_informe.py` | Informes HTML/PDF de dos muestras sintéticas (control y «ambiental») |
+| `ejemplos/informe_lamae.py` | Informe de caracterización con los datos reales de LAMAE (requiere `ejemplo_lamae/`) |
+| `ejemplos/demo_lamae.py` | Lectura de `.sdt`/`.czi` reales, calibración FLIM con IRF, segmentación |
+| `ejemplos/demo_fase1.py` … `demo_fase5.py` | Recorrido por fases sobre datos sintéticos |
+| `ejemplos/notebook_demo.ipynb` | Recorrido end-to-end en Jupyter |
+
 ## Flujo de datos
 
 ```mermaid
 flowchart LR
-    C[".sdt / .czi de los 6 polímeros<br/>o CSV de phasores"] --> CAL["Calibración<br/>centroide + covarianza"]
-    M["Imagen de muestra<br/>(ambiental / celular)"] --> SEG["Segmentación<br/>Otsu / K-means + watershed"]
+    C[".sdt / .czi de los 6 polímeros<br/>o CSV de phasores"] --> CAL["Calibración<br/>centroide + covarianza + n"]
+    M["Imagen de muestra<br/>(aire ambiental / fagocitos)"] --> IO["io_crudo<br/>detector + calibración IRF"]
+    IO --> SEG["Segmentación<br/>Otsu / K-means + watershed"]
     SEG --> FEAT["Features por ROI<br/>phasor, intensidad, forma"]
     FEAT --> FUS["Fusión FLIM + espectral"]
-    CAL --> CLF["Clasificador<br/>Mahalanobis / KNN / GMM"]
+    CAL --> CLF["Clasificador<br/>QDA / KNN / GMM"]
     FUS --> CLF
-    CLF --> R{"¿dentro de<br/>un cluster?"}
-    R -- no --> NC["no_clasificable<br/>(materia orgánica / autofluorescencia)"]
+    CLF --> R{"¿dentro de la región<br/>de aceptación?<br/>(Hotelling)"}
+    R -- no --> NC["no_clasificable"]
     R -- sí --> P["PET / HDPE / PVC / LDPE / PP / PS"]
-    NC --> REP["Reporte: CSV + phasores + overlay<br/>+ métricas (exactitud, F1, matriz de confusión)"]
+    NC --> REP["Informe por muestra<br/>HTML interactivo + PDF + CSV"]
     P --> REP
 ```
 
-Detalle en [`docs/PIPELINE.md`](docs/PIPELINE.md).
+## Estructura del paquete
 
-## Ejemplo end-to-end (Fase 1, datos sintéticos)
-
-```python
-import numpy as np
-from napari_mp_classifier import Calibracion, ClasificadorPhasor
-from napari_mp_classifier.metricas import evaluar_clasificacion
-
-# datos sintéticos de ejemplo (ver tests/datos_sinteticos.py)
-import sys; sys.path.insert(0, "tests")
-from datos_sinteticos import generar_calibracion, generar_particulas
-
-df = generar_calibracion("flim", n_por_polimero=60)
-cal = Calibracion.desde_dataframe(df, columnas=["g_flim", "s_flim"])
-
-clf = ClasificadorPhasor(cal, estrategia="centroide", confianza=0.99).entrenar()
-
-X, y = generar_particulas("flim", n_por_polimero=40, n_no_clasificables=60)
-pred = clf.predecir(X)
-
-print(evaluar_clasificacion(y, pred).resumen())
 ```
-
-## Ejemplo end-to-end (Fase 2, imagen sintética)
-
-```python
-import sys; sys.path.insert(0, "tests")
-from datos_sinteticos import generar_imagen_muestra, generar_calibracion, _columnas
-from napari_mp_classifier import Calibracion, ClasificadorPhasor, segmentar
-from napari_mp_classifier.features import extraer_features, matriz_features
-
-canales, verdad = generar_imagen_muestra(semilla=0)
-labels = segmentar(canales["intensidad"],
-                   g_flim=canales["g_flim"], s_flim=canales["s_flim"],
-                   g_esp=canales["g_esp"], s_esp=canales["s_esp"])   # -> imagen de labels
-
-feats = extraer_features(labels, canales["intensidad"],
-                         g_flim=canales["g_flim"], s_flim=canales["s_flim"],
-                         g_esp=canales["g_esp"], s_esp=canales["s_esp"])
-
-df = generar_calibracion("fusion", n_por_polimero=60)
-cal = Calibracion.desde_dataframe(df, columnas=_columnas("fusion"))
-clf = ClasificadorPhasor(cal, estrategia="knn", confianza=0.99)
-clf.entrenar(df[_columnas("fusion")].to_numpy(), df["polimero"].to_numpy())
-
-X, columnas = matriz_features(feats, "fusion")
-feats["polimero_predicho"] = clf.predecir(X)
-print(feats[["area_px", "g_flim", "s_flim", "polimero_predicho"]])
+src/napari_mp_classifier/
+  io_crudo.py          # .sdt/.czi → phasor por píxel (phasorpy); detectores; calibración IRF
+  calibracion_flim.py  # IRF sintética del flanco (SPCImage) y calibración z / z_IRF
+  calibracion.py       # firma de referencia de los 6 polímeros; guardar/cargar JSON
+  segmentacion.py      # ROIs por umbral / K-means + watershed
+  features.py          # phasor, intensidad y forma por ROI
+  clasificador.py      # QDA / KNN / GMM + regla «no clasificable» (Hotelling)
+  fusion.py            # fusión FLIM + espectral por ROI o por decisión
+  desmezcla.py         # fracción NR-MP vs autofluorescencia (phasorpy.component)
+  pipeline.py          # imagen → partículas clasificadas
+  metricas.py          # exactitud, exactitud balanceada, precisión, recall, F1, IoU
+  reportes.py          # CSV, figuras de publicación
+  informe_html.py      # informe por muestra (HTML interactivo + PDF)
+  glosario.py          # glosario y ayudas «?» de los informes
+  cli.py               # napari-mp-classifier classify …
+  napari_integracion/  # widget + phasor plot con back-projection
 ```
-
-Demo completa con figuras: `python ejemplos/demo_fase2.py`.
-
-## Pipeline completo (Fase 3)
-
-```python
-from napari_mp_classifier import Calibracion, analizar_muestra
-from napari_mp_classifier.reportes import generar_reporte
-
-# canales: dict con 'intensidad' + phasores por píxel; df: mediciones de calibración
-resultado = analizar_muestra(
-    canales, Calibracion.desde_dataframe(df, columnas=["g_flim", "s_flim", "g_esp", "s_esp"]),
-    estrategia="knn",
-    mediciones_calibracion=(df[["g_flim", "s_flim", "g_esp", "s_esp"]].to_numpy(), df["polimero"].to_numpy()),
-)
-generar_reporte(resultado, "resultados/", canales=canales)   # CSV + métricas + figuras
-```
-
-O desde la terminal:
-
-```bash
-napari-mp-classifier classify muestra.npz --calibracion calibracion.csv --salida resultados/
-```
-
-Demo con fusión y desmezcla: `python ejemplos/demo_fase3.py`.
 
 ## Documentación
 
-- [`docs/ANTECEDENTES.md`](docs/ANTECEDENTES.md) — las 6 referencias y su influencia de diseño.
-- [`docs/FASE_0_EVALUACION.md`](docs/FASE_0_EVALUACION.md) — evaluación de `phasorpy` / `napari-phasors`.
-- [`docs/PIPELINE.md`](docs/PIPELINE.md) — flujo de datos y estado por etapa.
-- [`docs/RESULTADOS_FASE1.md`](docs/RESULTADOS_FASE1.md) — prueba del clasificador sobre datos sintéticos.
-- [`docs/RESULTADOS_FASE2.md`](docs/RESULTADOS_FASE2.md) — segmentación + features + clasificación por ROI.
-- [`docs/RESULTADOS_FASE3.md`](docs/RESULTADOS_FASE3.md) — pipeline completo, fusión, desmezcla, CLI.
-- [`docs/RESULTADOS_FASE4.md`](docs/RESULTADOS_FASE4.md) — plugin de napari (widget + phasor plot con back-projection).
-- [`docs/RESULTADOS_FASE5.md`](docs/RESULTADOS_FASE5.md) — robustez (envejecimiento, ruido, `confianza`) y flujo de fagocitos.
-- [`docs/DECISION_CALIBRACION.md`](docs/DECISION_CALIBRACION.md) — calibración sobre polímero envejecido (no virgen) y su justificación.
-- [`ejemplos/notebook_demo.ipynb`](ejemplos/notebook_demo.ipynb) — recorrido end-to-end en Jupyter.
-- [`docs/FORMATO_DATOS.md`](docs/FORMATO_DATOS.md) — formatos de entrada/salida.
-- [`docs/SPECTRAL_UNMIXING.md`](docs/SPECTRAL_UNMIXING.md) — unmixing de λ-stacks (opciones napari/Python).
-- [`docs/PREGUNTAS_DATOS.md`](docs/PREGUNTAS_DATOS.md) — pendientes con el equipo.
-- [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md) — instalación y uso.
-- [`docs/BITACORA.md`](docs/BITACORA.md) — registro de avance.
+| Documento | Contenido |
+|---|---|
+| [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md) | Instalación y uso |
+| [`docs/INFORMES.md`](docs/INFORMES.md) | Informe por muestra: estructura, estado del análisis, PDF |
+| [`docs/CALIBRACION_FLIM.md`](docs/CALIBRACION_FLIM.md) | Calibración FLIM con IRF (SPCImage) y su validación |
+| [`docs/AUDITORIA.md`](docs/AUDITORIA.md) | Auditoría de octubre 2026: hallazgos, correcciones y pendientes |
+| [`docs/RESULTADOS_PRUEBA_LAMAE.md`](docs/RESULTADOS_PRUEBA_LAMAE.md) | Primera prueba con datos reales |
+| [`docs/PREGUNTAS_DATOS.md`](docs/PREGUNTAS_DATOS.md) | Pendientes con el equipo |
+| [`docs/ANTECEDENTES.md`](docs/ANTECEDENTES.md) | Las 6 referencias y su influencia en el diseño |
+| [`docs/FASE_0_EVALUACION.md`](docs/FASE_0_EVALUACION.md) | Evaluación de `phasorpy` / `napari-phasors` |
+| [`docs/PIPELINE.md`](docs/PIPELINE.md) | Flujo de datos por etapa |
+| [`docs/DECISION_CALIBRACION.md`](docs/DECISION_CALIBRACION.md) | Calibración sobre polímero envejecido |
+| [`docs/FORMATO_DATOS.md`](docs/FORMATO_DATOS.md) | Formatos de entrada y salida |
+| [`docs/SPECTRAL_UNMIXING.md`](docs/SPECTRAL_UNMIXING.md) | Desmezcla de λ-stacks |
+| `docs/RESULTADOS_FASE1.md` … `RESULTADOS_FASE5.md` | Resultados por fase (datos sintéticos) |
+| [`docs/BITACORA.md`](docs/BITACORA.md) | Registro de avance |
+
+## Cómo citar
+
+Corona N., Ríos M., Escobar-Guardia A., Moreno J., Etchart J., Galleto C., Blettler M.,
+Schierloh P. *Clasificación automática de microplásticos recalcitrantes basado en
+microscopía de fluorescencia espectral y FLIM.* FIUNER / LAMAE (IBB, UNER–CONICET) /
+LaSBI. PID 6303, UNER.
 
 ## Licencia
 

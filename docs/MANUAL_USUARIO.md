@@ -1,8 +1,7 @@
 # MANUAL_USUARIO.md
 
-Cubre el pipeline end-to-end (librería + CLI + napari) sobre datos ya calculados o
-sintéticos. La lectura de `.sdt`/`.czi` crudos (`io_crudo.py`) se agrega con los datos
-reales del equipo. Recorrido interactivo: [`../ejemplos/notebook_demo.ipynb`](../ejemplos/notebook_demo.ipynb).
+Cubre el pipeline end-to-end (librería + CLI + napari), desde archivos crudos `.sdt`/`.czi`
+o desde phasores ya calculados, hasta el informe por muestra. Recorrido interactivo: [`../ejemplos/notebook_demo.ipynb`](../ejemplos/notebook_demo.ipynb).
 
 ## Instalación
 
@@ -21,6 +20,24 @@ pip install -e ".[dev,napari]"
 napari                          # Plugins → Clasificador de microplásticos por phasores
 ```
 
+## Leer archivos crudos (`.sdt` FLIM / `.czi` λ-stack)
+
+```python
+from napari_mp_classifier.io_crudo import (listar_detectores_sdt, phasores_desde_czi,
+                                           phasores_desde_sdt)
+
+listar_detectores_sdt("muestra.sdt")          # fotones por detector (los .sdt de LAMAE traen 2)
+flim = phasores_desde_sdt("muestra.sdt", calibrar_irf=True)   # detector con más fotones,
+                                                              # calibrado con IRF (SPCImage)
+esp = phasores_desde_czi("muestra_lambda.czi")                # el espectral no se calibra
+g, s, intensidad = flim                       # flim.fotones = suma por píxel
+```
+
+`intensidad` es la **media** por bin/canal; para umbrales en fotones usá `fotones`. FLIM y
+espectral vienen de adquisiciones distintas (otra grilla), así que se clasifican por separado
+o se fusionan por decisión (`fusion.fusionar_por_decision`). Detalle de la calibración
+FLIM: [`CALIBRACION_FLIM.md`](CALIBRACION_FLIM.md).
+
 ## Uso como librería — clasificar contra los 6 polímeros
 
 ```python
@@ -35,9 +52,13 @@ cal = Calibracion.cargar_phasores_csv(
     columna_etiqueta="polimero",
 )
 
-# 2. Clasificador
+# 2. Clasificador (QDA + umbral de Hotelling; es la estrategia por defecto)
 clf = ClasificadorPhasor(cal, estrategia="centroide", confianza=0.99)
 clf.entrenar()
+
+# La calibración se puede guardar completa (centroides, covarianzas, n, metadatos)
+cal.guardar_json("calibracion.json")
+cal = Calibracion.cargar_json("calibracion.json")
 
 # 3. Predicción sobre partículas nuevas (coordenadas de phasor por ROI)
 X = np.array([[0.30, 0.46], [0.65, 0.49], [0.9, 0.9]])
@@ -61,16 +82,20 @@ columnas = ["g_flim", "s_flim", "g_esp", "s_esp"]
 cal = Calibracion.desde_dataframe(df_cal, columnas=columnas)
 
 resultado = analizar_muestra(
-    canales, cal,
-    estrategia="knn",
-    mediciones_calibracion=(df_cal[columnas].to_numpy(), df_cal["polimero"].to_numpy()),
+    canales, cal,                # estrategia="centroide" por defecto
+    # estrategia="knn", mediciones_calibracion=(X_cal, y_cal),  # knn las necesita
     escala_um_px=0.18,          # opcional, para area_um2
     # mascara_celular=mascara,  # opcional, para muestras de fagocitos (Mo/PMN)
 )
 
 print(resultado.conteo_por_polimero())
 generar_reporte(resultado, "resultados/", canales=canales)   # CSV + métricas + figuras
+
+from napari_mp_classifier.informe_html import generar_informe_html
+generar_informe_html(resultado, canales, "resultados/informe.html", nombre_muestra="M-01")
 ```
+
+El informe por muestra (HTML interactivo + PDF) se describe en [`INFORMES.md`](INFORMES.md).
 
 ## Uso como CLI
 
@@ -78,16 +103,18 @@ generar_reporte(resultado, "resultados/", canales=canales)   # CSV + métricas +
 napari-mp-classifier --version
 napari-mp-classifier classify muestra.npz \
     --calibracion calibracion.csv --salida resultados/ \
-    --estrategia knn --confianza 0.99 --escala-um-px 0.18
+    --confianza 0.99 --escala-um-px 0.18 --nombre M-01
 ```
 
 - `muestra.npz`: arrays 2D `intensidad` (obligatorio) + `g_flim`/`s_flim`/`g_esp`/`s_esp`
-  (al menos un par). La modalidad se deduce de los canales presentes.
-- `calibracion.csv`: una fila por medición de calibración, con las columnas de phasor y
-  una columna `polimero`.
-- Escribe en `--salida` el informe unificado: `asignaciones.csv`, `resumen_muestra.md`,
-  métricas y figuras.
-- La lectura de `.sdt` / `.czi` crudos se habilita cuando esté `io_crudo.py` (datos reales).
+  (al menos un par). La modalidad se deduce de los canales presentes; `--modalidad flim`
+  o `--modalidad espectral` la restringe aunque estén los cuatro.
+- `--calibracion`: un CSV con una fila por medición (columnas de phasor + `polimero`) o un
+  `.json` de `Calibracion.guardar_json` (este último solo con `centroide`/`gmm`).
+- `--estrategia`: `centroide` (por defecto), `knn` o `gmm`.
+- Escribe en `--salida`: `asignaciones.csv`, `resumen_muestra.md`, métricas, figuras y el
+  **informe por muestra** `informe.html` (+ `informe.pdf` si hay Chrome/Chromium).
+  `--sin-pdf` omite el PDF y `--sin-informe` omite ambos.
 
 ## Uso en napari (Fase 4)
 
@@ -122,17 +149,23 @@ canales_filtrados["intensidad"] = canales["intensidad"] * mascara_mp
 
 ## ¿Cuándo una partícula queda "no clasificable"?
 
-Cuando su distancia al cluster de polímero más cercano supera el umbral estadístico
-`chi2.ppf(confianza, df=n_features)` (con `confianza=0.99` por defecto). Es el mecanismo
+Cuando su distancia de Mahalanobis al cluster asignado supera el umbral de la **región de
+predicción de Hotelling** de ese cluster (con `confianza=0.99` por defecto). A diferencia
+del χ², este umbral tiene en cuenta que el centroide y la covarianza se estiman con pocas
+mediciones: con 10 mediciones por polímero el χ² rechazaba 23 % de polímero real en lugar
+del 1 % nominal (`AUDITORIA.md`). Una partícula con phasor inválido (NaN, pocos fotones)
+también queda `no_clasificable`. Es el mecanismo
 para no asignar polímero a materia orgánica fluorescente (muestras ambientales) ni a
 autofluorescencia celular (monocitos / neutrófilos). Subir `confianza` → menos rechazos,
 más riesgo de falso positivo; bajarla → más rechazos, más riesgo de perder polímero real
 o envejecido. `confianza=None` desactiva el rechazo.
 
-**Punto de operación recomendado para muestras ambientales: `confianza = 0.995`** — bajo
-desajuste de envejecimiento moderado recupera casi todo el polímero real que el 0.99
-pierde, sin bajar casi el rechazo de materia orgánica (ver `RESULTADOS_FASE5.md`). Lo
-ideal es fijarlo por validación cruzada sobre la calibración real.
+**Elegir `confianza` con datos reales.** El `0.995` que recomendaba `RESULTADOS_FASE5.md`
+se midió con el umbral χ², que estaba descalibrado; con Hotelling ya no vale. En el
+escenario realista de la auditoría, `0.99` rechaza 1,3 % de polímero pero acepta la mitad
+de la autofluorescencia que cae cerca de un polímero. El punto de operación se tiene que
+fijar con controles negativos (materia orgánica sin MP) y validación cruzada sobre la
+calibración real.
 
 La calibración se hace sobre polímero **envejecido con el estándar** (abrasión + H₂O₂
 [+ UV]), no virgen — ver `DECISION_CALIBRACION.md`.

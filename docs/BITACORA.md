@@ -4,6 +4,103 @@ Registro cronológico de decisiones y avances. Entradas nuevas arriba.
 
 ---
 
+## 2026-10-06/07 — Auditoría, calibración FLIM con IRF e informe por muestra
+
+Revisión completa del paquete (`docs/AUDITORIA.md`): **18 hallazgos** (4 críticos, 6 altos),
+todos verificados corriendo el código. 13 corregidos, 3 parciales, 2 pendientes.
+
+- **Clasificador**:
+  - una ROI con phasor NaN pasa a `no_clasificable` (antes caía en HDPE o tiraba abajo el
+    pipeline);
+  - el rechazo usa la **región de predicción de Hotelling**: con 10 mediciones por
+    polímero, χ² rechazaba 23 % de polímero real en lugar del 1 % nominal;
+  - la asignación es **QDA** (`d² + log|Σ|`);
+  - KNN pondera el voto por distancia y tiene umbral conformal opcional;
+  - el GMM pasa a ser supervisado;
+  - estrategia por defecto **`centroide`** en pipeline, CLI y widget, porque KNN acepta
+    79 % de la materia orgánica en el escenario realista.
+- **FLIM real**:
+  - el `.sdt` de LAMAE trae 2 detectores y se leía el más débil (3 M vs. 63 M fotones):
+    `io_crudo` ahora elige el de más fotones y agrega `listar_detectores_sdt`;
+  - **calibración con IRF del flanco, como SPCImage** (`calibracion_flim.py`,
+    `docs/CALIBRACION_FLIM.md`): error de +2 a +6 % entre 1 y 4 ns, contra −15 % de
+    «pico → 0»;
+  - PE/Nile Red: τφ = 2,69 ns, τm = 2,95 ns (antes informaba 2,3 ns);
+  - `intensidad` es la media por bin (documentado) y se agrega `fotones`.
+- `Calibracion.guardar_json` / `cargar_json`. Métricas: emparejamiento 1 a 1 (húngaro) y
+  exactitud balanceada. Fusión por ROI con asignación óptima. CLI: `--modalidad` arreglado.
+- **Informe por muestra HTML + PDF** (`informe_html.py`, `glosario.py`,
+  `docs/INFORMES.md`). Tiene formato de informe de laboratorio, con estado del análisis
+  automático, IC de Wilson, vistas vinculadas y PDF vía Chrome headless. La CLI lo genera
+  por defecto. Ejemplos: `ejemplos/demo_informe.py` y `ejemplos/informe_lamae.py`.
+- README reescrito: marco del PID 6303, equipo, LAMAE / LaSBI y estado del proyecto.
+- **137 tests en verde** (base) / 143 en `napari-mp-env`.
+
+### Resultados (fusión, `confianza = 0,99`)
+
+- Escenario realista (covarianzas distintas, 15 mediciones por polímero,
+  autofluorescencia cerca de un polímero): exactitud balanceada **0,917**, 1,3 % de
+  polímero rechazado y **51 % de materia orgánica aceptada** (AUROC 0,93). El umbral
+  calibrado no separa la autofluorescencia cercana: hay que fijar `confianza` con
+  controles negativos reales y sumar evidencia (dispersión, forma, desmezcla).
+- La fusión no pierde contra ninguna modalidad sola, pero en el escenario realista le
+  gana al espectral solo por poco (0,917 vs. 0,912).
+- La recomendación `confianza = 0,995` de la Fase 5 se midió con el umbral χ² y queda
+  superada.
+
+### Pendiente
+
+Filtrado del phasor FLIM (pocos fotones), escenario realista en los tests, métrica
+end-to-end con no detectadas, *shrinkage* de covarianzas y `metodo_centro`. Del equipo:
+calibración de los 6 polímeros, filtro de cada detector, IRF medida por sesión y controles
+negativos.
+
+---
+
+## 2026-09-07 — Primera prueba con imágenes reales (LAMAE)
+
+Llegó `ejemplo_lamae/` (no versionada): una partícula de **polietileno / Nile Red**, 63x,
+exc 440 nm, en 3 adquisiciones del mismo campo (FLIM `.sdt`, λ-stack `.czi`, z-stack
+`.czi`), **sin registro entre sí**.
+
+- **`io_crudo.py` implementado** (dejó de ser stub). `phasores_desde_sdt` y
+  `phasores_desde_czi` → dataclass `PhasoresImagen` (`g`, `s`, `intensidad` 2D + metadata;
+  se desempaca `g, s, intensidad = ...`). Calibración FLIM opcional vía `ruta_referencia` +
+  `referencia_lifetime_ns` (`phasor_calibrate`).
+- `pyproject.toml`: `sdtfile` + `czifile` agregados a las dependencias base (los usa
+  `phasorpy.io` para estos formatos).
+- `tests/test_io_crudo.py` (+8, lectores de `phasorpy` mockeados con señales sintéticas).
+  `ejemplos/demo_lamae.py` → `ejemplos/salida_demo_lamae/`. **97 tests en verde**, ruff limpio.
+- Detalle y figuras: `docs/RESULTADOS_PRUEBA_LAMAE.md`.
+
+### Resultados
+
+- **Espectral — OK.** Phasor de PE: g = −0,614, s = 0,181 (ángulo 163,5°), centro
+  espectral aparente ≈ 578 nm (Nile Red en matriz apolar/hidrofóbica, coherente con una
+  poliolefina). Cluster compacto y unimodal. No necesita calibración → esta rama ya sirve
+  para armar la firma de referencia de un polímero. Segmentación Otsu (sin watershed):
+  1 ROI, 215 µm².
+- **FLIM — carga y calcula, pero sin calibrar.** Phasor crudo g = −0,090, s = 0,612,
+  **fuera del semicírculo universal**: la IRF del equipo no está removida.
+  `phasores_desde_sdt(corregir_desfase=True)` (rota el eje temporal, pico→bin 0) devuelve
+  la nube al semicírculo (g = 0,47, s = 0,41 → tau_phi ≈ 2,3 ns), pero es **aproximado**,
+  no calibración: falta la **imagen de referencia de lifetime** (fluoresceína / rodamina)
+  para `phasor_calibrate`. El cluster es compacto → señal limpia.
+- **z-stack — descartado.** `signal_from_czi` lo rechaza (no es espectral); `io_crudo`
+  propaga el `ValueError`.
+
+### Pendiente del equipo (bloquea la clasificación)
+
+1. Imagen de referencia FLIM (fluoróforo + lifetime en ns) por sesión.
+2. Set de calibración de los 6 polímeros envejecidos, mismo formato.
+3. Si se quiere fusión por píxel: FLIM y espectral del mismo campo con la misma grilla.
+4. Código SPI exacto del "PE" (HDPE ♴ / LDPE ♶).
+
+Respuestas parciales anotadas en `docs/PREGUNTAS_DATOS.md` (frecuencia FLIM 59,96 MHz,
+rango espectral 451–721 nm / 28 canales, no registrados).
+
+---
+
 ## 2026-09-01 — Fase 0 + Fase 1
 
 ### Fase 0 — Diseño y evaluación de dependencias  ✔

@@ -55,6 +55,11 @@ Más allá, de nuevo el modo de falla es "no clasificable", no misclasificación
 polímero real que el 0,99 perdía, a costa de bajar el rechazo de materia orgánica solo de
 0,96 a 0,94. Fijarlo por validación cruzada sobre la calibración real.
 
+> **Superado (2026-10-06).** Esta tabla se midió con el umbral χ², que la auditoría
+> encontró descalibrado (rechazaba polímero de más con calibraciones chicas). Desde la
+> corrección, el umbral por defecto es el de Hotelling y la recomendación de 0,995 ya no
+> vale. Ver `AUDITORIA.md` y `MANUAL_USUARIO.md`.
+
 ## 4. Fusión vs. una sola modalidad, bajo desajuste de envejecimiento
 
 | grado | FLIM sola | espectral sola | **fusión** |
