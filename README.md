@@ -2,19 +2,21 @@
 
 <img src="docs/img/banner_institucional.png" alt="Facultad de Ingeniería (UNER) · IBB (UNER–CONICET) · CONICET" width="760">
 
-# napari-mp-classifier
+# Napari-MP 1.0
 
 **Clasificación automática de microplásticos recalcitrantes mediante microscopía de
 fluorescencia espectral y FLIM**
 
-Facultad de Ingeniería · Universidad Nacional de Entre Ríos<br>
-LAMAE — Instituto de Investigación y Desarrollo en Bioingeniería y Bioinformática (UNER–CONICET)<br>
-LaSBI — Facultad de Ingeniería, UNER
+<sup>1</sup> Departamento de Biología, Facultad de Ingeniería (**FIUNER**), Universidad Nacional de Entre Ríos (**UNER**)<br>
+<sup>2</sup> **LAMAE**, Laboratorio de Microscopía Aplicada a Estudios Moleculares y Celulares.
+**IBB**, Instituto de Investigación y Desarrollo en Bioingeniería y Bioinformática,
+UNER – **CONICET** (Consejo Nacional de Investigaciones Científicas y Técnicas)<br>
+<sup>3</sup> **LaSBI**, Laboratorio de Salud y Bienestar Integral, FIUNER, UNER
 
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776ab)
 ![phasorpy](https://img.shields.io/badge/phasorpy-%E2%89%A5%200.12-0a7bbb)
+![versión](https://img.shields.io/badge/versi%C3%B3n-1.0%20en%20desarrollo-f0a202)
 ![tests](https://img.shields.io/badge/tests-143%20en%20verde-2e7d32)
-![estado](https://img.shields.io/badge/estado-validaci%C3%B3n%20con%20datos%20reales-f0a202)
 ![licencia](https://img.shields.io/badge/licencia-MIT-555)
 
 </div>
@@ -23,7 +25,7 @@ LaSBI — Facultad de Ingeniería, UNER
 
 ## Resumen
 
-`napari-mp-classifier` es un módulo de análisis que identifica **microplásticos (MP)
+**Napari-MP** es un módulo de análisis que identifica **microplásticos (MP)
 recalcitrantes** teñidos con **Nile Red** y los asigna a uno de seis polímeros de referencia:
 ♳ PET, ♴ HDPE, ♵ PVC, ♶ LDPE, ♷ PP y ♸ PS. Para eso usa **diagramas de phasores** de dos
 modalidades de microscopía de fluorescencia:
@@ -36,6 +38,11 @@ Las partículas cuya firma no corresponde a ningún polímero calibrado se infor
 técnico (HTML interactivo y PDF) con composición, localización, firma de fluorescencia y
 trazabilidad del análisis.
 
+> **Versión 1.0, en desarrollo.** La versión 1.0 todavía no está cerrada: falta la
+> calibración con los seis polímeros reales y la validación con muestras reales (ver
+> [Estado del desarrollo](#estado-del-desarrollo-octubre-2026)). El paquete de Python y
+> la línea de comandos se llaman `napari-mp-classifier` (versión `1.0.0.dev0`).
+
 > **Aporte frente al estado del arte.** Ningún antecedente relevado combina FLIM y
 > espectral en simultáneo: Sancataldo et al. (2020) usan solo FLIM, Meyers et al. (2022)
 > solo RGB y FIMAP (2025) solo espectral con redes neuronales. Ver
@@ -46,11 +53,12 @@ trazabilidad del análisis.
 | Ítem | Detalle |
 |---|---|
 | **Proyecto** | PID 6303 — *«Microplásticos atmosféricos inhalables. Métodos innovadores para caracterizar muestras de aire ambiental y biodistribución bronquioalveolar basados en Microscopía de fluorescencia multimodal»* |
-| **Institución** | Universidad Nacional de Entre Ríos (UNER) |
+| **Institución** | UNER |
 | **Director** | Dr. Luis Pablo Schierloh |
 | **Contexto** | Beca del PID 6303 |
 | **Trabajo asociado** | Póster *«Clasificación automática de microplásticos recalcitrantes basado en microscopía de fluorescencia espectral y FLIM»*. Este software implementa su Fig. 5 |
 | **Desarrollo del software** | Matías Ríos, estudiante de la Licenciatura en Bioinformática (FIUNER) |
+| **Versión** | 1.0, en desarrollo |
 
 ### Equipo
 
@@ -65,14 +73,7 @@ trazabilidad del análisis.
 | Martín Blettler | 2 |
 | Pablo Schierloh | 1, 2, 3 |
 
-\* Igual contribución.
-
-1. Departamento de Biología, Facultad de Ingeniería (FIUNER), Universidad Nacional de
-   Entre Ríos.
-2. **LAMAE**, Laboratorio de Microscopía Aplicada a Estudios Moleculares y Celulares.
-   Instituto de Investigación y Desarrollo en Bioingeniería y Bioinformática (**IBB**),
-   UNER–CONICET.
-3. **LaSBI**, Laboratorio de Salud y Bienestar Integral, FIUNER, UNER.
+\* Igual contribución. Filiaciones numeradas según el encabezado.
 
 ## Fundamento científico
 
@@ -292,8 +293,8 @@ src/napari_mp_classifier/
 
 > Corona N., Ríos M., Escobar-Guardia A., Moreno J., Etchart J., Galleto C., Blettler M.,
 > Schierloh P. *Clasificación automática de microplásticos recalcitrantes basado en
-> microscopía de fluorescencia espectral y FLIM.* Facultad de Ingeniería, Universidad
-> Nacional de Entre Ríos; LAMAE, IBB (UNER–CONICET); LaSBI (FIUNER). PID 6303, UNER.
+> microscopía de fluorescencia espectral y FLIM.* Napari-MP 1.0 (en desarrollo).
+> FIUNER; LAMAE, IBB (UNER–CONICET); LaSBI (FIUNER). PID 6303, UNER.
 
 ## Licencia
 
@@ -303,5 +304,5 @@ la licencia del código no los alcanza. Fuentes en
 [`docs/img/logos/FUENTES.md`](docs/img/logos/FUENTES.md).
 
 <div align="center">
-<sub>Universidad Nacional de Entre Ríos · Facultad de Ingeniería · Oro Verde, Entre Ríos, Argentina</sub>
+<sub>Napari-MP 1.0 · Oro Verde, Entre Ríos, Argentina</sub>
 </div>

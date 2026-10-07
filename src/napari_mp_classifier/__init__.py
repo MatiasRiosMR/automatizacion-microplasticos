@@ -9,7 +9,7 @@ Ver ``docs/`` para el fundamento científico y las decisiones de diseño.
 
 from __future__ import annotations
 
-__version__ = "0.1.0.dev0"
+__version__ = "1.0.0.dev0"
 
 # Códigos SPI de los 6 polímeros de referencia del póster.
 POLIMEROS: tuple[str, ...] = ("PET", "HDPE", "PVC", "LDPE", "PP", "PS")

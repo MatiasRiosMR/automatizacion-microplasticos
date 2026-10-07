@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "napari-mp-classifier"
-version = "0.1.0.dev0"
+version = "1.0.0.dev0"
 description = "Clasificación automática de microplásticos recalcitrantes por phasores de fluorescencia espectral y FLIM (Nile Red)"
 readme = "README.md"
 requires-python = ">=3.11"
