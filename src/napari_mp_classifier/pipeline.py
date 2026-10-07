@@ -73,7 +73,7 @@ def analizar_muestra(
     canales: dict[str, np.ndarray],
     calibracion: Calibracion,
     *,
-    estrategia: str = "knn",
+    estrategia: str = "centroide",
     confianza: float | None = 0.99,
     metodo_segmentacion: str = "umbral",
     separar_contacto: bool = True,
@@ -95,9 +95,11 @@ def analizar_muestra(
         clasificación se deduce de los pares presentes (fusión si están los cuatro).
     calibracion : Calibracion
         Firma de referencia. Su ``columnas`` debe ser coherente con los canales pasados.
-    estrategia : {"knn", "centroide", "gmm"}, optional
-        Estrategia del clasificador. Por defecto ``"knn"`` (más robusta para el rechazo,
-        ver ``docs/RESULTADOS_FASE1.md``).
+    estrategia : {"centroide", "knn", "gmm"}, optional
+        Estrategia del clasificador. Por defecto ``"centroide"`` (QDA + umbral de
+        Hotelling): en el escenario realista de la auditoría tiene la mejor exactitud
+        balanceada; ``"knn"`` con su umbral por defecto acepta la mayor parte de la
+        materia orgánica (ver ``docs/AUDITORIA.md``).
     confianza : float or None, optional
         Nivel de confianza de la regla ``"no_clasificable"``. Por defecto ``0.99``.
     metodo_segmentacion : {"umbral", "kmeans"}, optional
@@ -110,13 +112,17 @@ def analizar_muestra(
         Tamaño de píxel en µm (para ``area_um2``).
     mediciones_calibracion : tuple(numpy.ndarray, numpy.ndarray), optional
         ``(X, y)`` con las mediciones individuales de calibración. **Obligatorio** si
-        ``estrategia="knn"``.
+        ``estrategia="knn"``; con ``"gmm"`` re-estima cada gaussiana y su peso.
     mascara_celular : numpy.ndarray, optional
         Si se pasa, solo se conservan las ROIs contenidas en ella (muestras de fagocitos,
         :func:`~napari_mp_classifier.segmentacion.restringir_a_mascara`).
     verdad : dict, optional
         ``{"labels": ..., "polimero": {label: codigo}}`` de verdad de terreno. Si se pasa,
-        se calculan ``reporte_segmentacion`` y ``reporte_clasificacion``.
+        se calculan ``reporte_segmentacion`` y ``reporte_clasificacion``. El
+        emparejamiento ROI predicha ↔ verdadera es uno a uno (:func:`emparejar_rois`); las
+        ROIs predichas sin pareja (falsas detecciones) cuentan con verdad
+        ``"no_clasificable"``. Las partículas verdaderas no detectadas no entran en
+        ``reporte_clasificacion`` (se ven en ``reporte_segmentacion``).
     semilla : int, optional
 
     Returns
@@ -165,9 +171,9 @@ def analizar_muestra(
     )
 
     clf = ClasificadorPhasor(calibracion, estrategia=estrategia, confianza=confianza)
-    if estrategia == "knn":
-        if mediciones_calibracion is None:
-            raise ValueError("estrategia='knn' necesita mediciones_calibracion=(X, y).")
+    if estrategia == "knn" and mediciones_calibracion is None:
+        raise ValueError("estrategia='knn' necesita mediciones_calibracion=(X, y).")
+    if estrategia in ("knn", "gmm") and mediciones_calibracion is not None:
         clf.entrenar(*mediciones_calibracion)
     else:
         clf.entrenar()

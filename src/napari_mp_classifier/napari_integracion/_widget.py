@@ -58,7 +58,7 @@ class WidgetClasificador(Container):
             annotation=Path, label="calibración (.csv)", options={"mode": "r", "filter": "*.csv"}
         )
         self._estrategia = ComboBox(
-            label="estrategia", choices=["knn", "centroide", "gmm"], value="knn"
+            label="estrategia", choices=["centroide", "knn", "gmm"], value="centroide"
         )
         self._confianza = FloatSlider(label="confianza", min=0.5, max=0.999, value=0.99)
         self._metodo_seg = ComboBox(
@@ -143,7 +143,7 @@ class WidgetClasificador(Container):
         calibracion = Calibracion.desde_dataframe(df_cal, columnas=columnas)
         mediciones = (
             (df_cal[columnas].to_numpy(), df_cal["polimero"].to_numpy())
-            if self._estrategia.value == "knn"
+            if self._estrategia.value in ("knn", "gmm")
             else None
         )
         confianza = self._confianza.value if self._confianza.value < 0.999 else None

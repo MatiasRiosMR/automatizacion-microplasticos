@@ -42,7 +42,7 @@ def test_widget_clasificador_construye(make_napari_viewer):
 
     viewer = make_napari_viewer()
     widget = WidgetClasificador(viewer)
-    assert widget._estrategia.value == "knn"
+    assert widget._estrategia.value == "centroide"
 
 
 def test_flujo_completo_agrega_capa_clasificada(muestra_en_capas):

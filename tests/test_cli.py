@@ -71,3 +71,49 @@ def test_classify_muestra_inexistente(tmp_path, muestra_y_calibracion):
         "--salida", str(tmp_path / "out"),
     ])
     assert codigo == 2
+
+
+def test_classify_modalidad_espectral_con_npz_de_cuatro_canales(muestra_y_calibracion, tmp_path):
+    # Antes fallaba: el pipeline volvía a deducir 'fusion' de los canales.
+    ruta_npz, _, _ = muestra_y_calibracion
+    df = generar_calibracion("espectral", n_por_polimero=60, semilla=0)
+    ruta_cal = tmp_path / "cal_esp.csv"
+    df.to_csv(ruta_cal, index=False)
+    salida = tmp_path / "esp"
+    codigo = main(["classify", str(ruta_npz), "--calibracion", str(ruta_cal),
+                   "--salida", str(salida), "--modalidad", "espectral"])
+    assert codigo == 0
+    assert (salida / "asignaciones.csv").exists()
+
+
+def test_classify_genera_informe_html(muestra_y_calibracion, tmp_path):
+    ruta_npz, ruta_cal, _ = muestra_y_calibracion
+    salida = tmp_path / "inf"
+    assert main(["classify", str(ruta_npz), "--calibracion", str(ruta_cal),
+                 "--salida", str(salida), "--nombre", "Muestra X", "--sin-pdf"]) == 0
+    html = (salida / "informe.html").read_text(encoding="utf-8")
+    assert "Muestra X" in html and "Informe de análisis de microplásticos" in html
+
+
+def test_classify_sin_informe(muestra_y_calibracion, tmp_path):
+    ruta_npz, ruta_cal, _ = muestra_y_calibracion
+    salida = tmp_path / "sin"
+    assert main(["classify", str(ruta_npz), "--calibracion", str(ruta_cal),
+                 "--salida", str(salida), "--sin-informe"]) == 0
+    assert not (salida / "informe.html").exists()
+
+
+def test_classify_con_calibracion_json(muestra_y_calibracion, tmp_path):
+    from datos_sinteticos import _columnas
+
+    from napari_mp_classifier import Calibracion
+
+    ruta_npz, _, _ = muestra_y_calibracion
+    df = generar_calibracion("fusion", n_por_polimero=60, semilla=0)
+    ruta_json = tmp_path / "cal.json"
+    Calibracion.desde_dataframe(df, columnas=_columnas("fusion")).guardar_json(ruta_json)
+    salida = tmp_path / "json"
+    args = ["classify", str(ruta_npz), "--calibracion", str(ruta_json), "--salida", str(salida),
+            "--sin-informe"]
+    assert main([*args, "--estrategia", "centroide"]) == 0
+    assert main([*args, "--estrategia", "knn"]) == 2  # knn necesita las mediciones (CSV)

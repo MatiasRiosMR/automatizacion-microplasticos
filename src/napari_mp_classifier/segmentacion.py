@@ -179,10 +179,10 @@ def separar_contacto(
         Si se pasa, el relieve de inundación combina distancia e intensidad (los picos de
         brillo actúan como centros de partícula); si no, se usa solo la distancia.
     min_distancia : int, optional
-        Separación mínima en px entre marcadores (máximos locales). Por defecto ``5``.
+        Separación mínima en px entre marcadores (máximos locales). Por defecto ``3``.
     umbral_marcador : float, optional
         Fracción del máximo de la transformada de distancia por debajo de la cual no se
-        siembran marcadores. Por defecto ``0.35``.
+        siembran marcadores. Por defecto ``0.4``.
 
     Returns
     -------
@@ -212,7 +212,7 @@ def separar_contacto(
     semillas[tuple(coords.T)] = True
     marcadores = label(semillas)
 
-    relieve = -distancia
+    relieve = -distancia / max(float(distancia.max()), 1e-12)  # misma escala que la intensidad
     if intensidad is not None:
         relieve = relieve - _normalizar(intensidad)
     return watershed(relieve, marcadores, mask=binaria).astype(np.int32)

@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import (
     accuracy_score,
+    balanced_accuracy_score,
     confusion_matrix,
     precision_recall_fscore_support,
 )
@@ -32,6 +33,8 @@ class ReporteClasificacion:
     ----------
     exactitud : float
         Fracción de partículas correctamente clasificadas (accuracy global).
+    exactitud_balanceada : float
+        Promedio del recall de cada clase: no se infla cuando una clase domina.
     precision_macro, recall_macro, f1_macro : float
         Promedio no ponderado sobre las clases consideradas.
     por_clase : pandas.DataFrame
@@ -52,12 +55,14 @@ class ReporteClasificacion:
     matriz_confusion: pd.DataFrame
     etiquetas: list[str]
     n: int
+    exactitud_balanceada: float = float("nan")
 
     def resumen(self) -> str:
         """Texto legible con las métricas principales (para consola o log)."""
         lineas = [
             f"n = {self.n} partículas",
             f"exactitud       : {self.exactitud:.3f}",
+            f"exact. balanceada: {self.exactitud_balanceada:.3f}",
             f"precisión (macro): {self.precision_macro:.3f}",
             f"recall (macro)  : {self.recall_macro:.3f}",
             f"F1 (macro)      : {self.f1_macro:.3f}",
@@ -137,8 +142,15 @@ def evaluar_clasificacion(
         accuracy_score(y_verdadero[mascara], y_predicho[mascara]) if mascara.any() else float("nan")
     )
 
+    if mascara.any():
+        exactitud_bal = float(balanced_accuracy_score(
+            y_verdadero[mascara].astype(str), y_predicho[mascara].astype(str)))
+    else:
+        exactitud_bal = float("nan")
+
     return ReporteClasificacion(
         exactitud=float(exactitud),
+        exactitud_balanceada=exactitud_bal,
         precision_macro=float(np.mean(precision)) if len(precision) else float("nan"),
         recall_macro=float(np.mean(recall)) if len(recall) else float("nan"),
         f1_macro=float(np.mean(f1)) if len(f1) else float("nan"),
@@ -200,7 +212,12 @@ def emparejar_rois(
     labels_verdadero: np.ndarray,
     iou_min: float = 0.3,
 ) -> dict[int, tuple[int, float]]:
-    """Empareja cada ROI verdadera con la ROI predicha de mayor solape (IoU).
+    """Empareja ROIs verdaderas y predichas 1 a 1 maximizando el IoU total.
+
+    El emparejamiento es óptimo (algoritmo húngaro, :func:`scipy.optimize.linear_sum_assignment`)
+    y **uno a uno**: una ROI predicha que cubre dos partículas verdaderas (fusión por
+    segmentación) se empareja solo con una; la otra queda sin pareja y cuenta como no
+    detectada.
 
     Parameters
     ----------
@@ -218,25 +235,29 @@ def emparejar_rois(
     pred = np.asarray(labels_predicho, dtype=int)
     verd = np.asarray(labels_verdadero, dtype=int)
 
-    areas_pred = {int(i): int((pred == i).sum()) for i in np.unique(pred) if i > 0}
-    emparejamiento: dict[int, tuple[int, float]] = {}
-    for etiqueta_v in np.unique(verd):
-        if etiqueta_v == 0:
-            continue
+    from scipy.optimize import linear_sum_assignment
+
+    ids_v = [int(i) for i in np.unique(verd) if i > 0]
+    ids_p = [int(i) for i in np.unique(pred) if i > 0]
+    if not ids_v or not ids_p:
+        return {}
+    areas_pred = {i: int((pred == i).sum()) for i in ids_p}
+    pos_p = {i: j for j, i in enumerate(ids_p)}
+    iou = np.zeros((len(ids_v), len(ids_p)))
+    for a, etiqueta_v in enumerate(ids_v):
         mascara_v = verd == etiqueta_v
         area_v = int(mascara_v.sum())
         solapados, cuentas = np.unique(pred[mascara_v], return_counts=True)
-        mejor_iou, mejor_pred = 0.0, 0
         for etiqueta_p, interseccion in zip(solapados, cuentas):
             if etiqueta_p == 0:
                 continue
             union = area_v + areas_pred[int(etiqueta_p)] - int(interseccion)
-            iou = int(interseccion) / union if union else 0.0
-            if iou > mejor_iou:
-                mejor_iou, mejor_pred = iou, int(etiqueta_p)
-        if mejor_iou >= iou_min:
-            emparejamiento[int(etiqueta_v)] = (mejor_pred, mejor_iou)
-    return emparejamiento
+            iou[a, pos_p[int(etiqueta_p)]] = int(interseccion) / union if union else 0.0
+    filas, columnas = linear_sum_assignment(-iou)
+    return {
+        ids_v[a]: (ids_p[b], float(iou[a, b]))
+        for a, b in zip(filas, columnas) if iou[a, b] >= iou_min
+    }
 
 
 def evaluar_segmentacion(

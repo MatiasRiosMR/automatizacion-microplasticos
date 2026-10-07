@@ -10,10 +10,15 @@ Comando principal::
   ``s_esp`` (al menos un par). La modalidad se deduce de los pares presentes.
 - ``calibracion.csv``: una fila por medición de calibración, con las columnas de phasor
   correspondientes y una columna ``polimero``. Se usa para la firma de referencia y,
-  con ``--estrategia knn``, para entrenar el clasificador.
+  con ``--estrategia knn``/``gmm``, para entrenar el clasificador. También se acepta un
+  ``.json`` guardado con :meth:`Calibracion.guardar_json` (solo ``centroide``/``gmm``).
 
-La lectura de ``.sdt`` / ``.czi`` crudos pasa por ``io_crudo`` y se habilita cuando el
-equipo entregue datos de ejemplo (ver ``docs/PREGUNTAS_DATOS.md``).
+Además del CSV de asignaciones, las métricas y las figuras, escribe el **informe por
+muestra** ``informe.html`` (+ ``informe.pdf`` si hay Chrome/Chromium); ``--sin-informe``
+lo omite. ``--modalidad`` restringe el análisis a FLIM o espectral aunque el ``.npz``
+traiga los cuatro canales.
+
+La lectura de ``.sdt`` / ``.czi`` crudos se hace con :mod:`napari_mp_classifier.io_crudo`.
 """
 
 from __future__ import annotations
@@ -51,7 +56,7 @@ def _construir_parser() -> argparse.ArgumentParser:
     p_clf.add_argument("--modalidad", default="auto",
                        choices=["auto", "fusion", "flim", "espectral"],
                        help="Modalidad de clasificación. 'auto' la deduce de los canales.")
-    p_clf.add_argument("--estrategia", default="knn",
+    p_clf.add_argument("--estrategia", default="centroide",
                        choices=["centroide", "knn", "gmm"])
     p_clf.add_argument("--confianza", type=float, default=0.99,
                        help="Nivel de confianza de la regla 'no_clasificable' (0-1). "
@@ -62,6 +67,12 @@ def _construir_parser() -> argparse.ArgumentParser:
                        help="Tamaño de píxel en µm (para area_um2).")
     p_clf.add_argument("--sin-separar-contacto", action="store_true",
                        help="No aplicar watershed para separar partículas en contacto.")
+    p_clf.add_argument("--nombre", default=None,
+                       help="Nombre de la muestra para el informe (por defecto, el del archivo).")
+    p_clf.add_argument("--sin-informe", action="store_true",
+                       help="No generar el informe HTML/PDF por muestra.")
+    p_clf.add_argument("--sin-pdf", action="store_true",
+                       help="Generar el informe HTML pero no el PDF.")
     return parser
 
 
@@ -91,20 +102,37 @@ def _classify(args: argparse.Namespace) -> int:
     from .reportes import generar_reporte
 
     canales = _cargar_muestra(args.muestra)
-    modalidad = args.modalidad if args.modalidad != "auto" else _modalidad_de_canales(canales)
+    disponible = _modalidad_de_canales(canales)
+    modalidad = args.modalidad if args.modalidad != "auto" else disponible
     columnas = _COLUMNAS_MODALIDAD[modalidad]
-
-    df_cal = pd.read_csv(args.calibracion)
-    faltan = [c for c in [*columnas, "polimero"] if c not in df_cal.columns]
-    if faltan:
-        print(f"El CSV de calibración no tiene las columnas {faltan}.", file=sys.stderr)
+    faltan_canales = [c for c in columnas if c not in canales]
+    if faltan_canales:
+        print(f"La muestra no tiene los canales {faltan_canales} para la modalidad "
+              f"'{modalidad}'.", file=sys.stderr)
         return 2
-    calibracion = Calibracion.desde_dataframe(df_cal, columnas=columnas)
-    mediciones = (
-        (df_cal[columnas].to_numpy(), df_cal["polimero"].to_numpy())
-        if args.estrategia == "knn"
-        else None
-    )
+    # Se conservan solo los canales de la modalidad elegida (el pipeline la deduce de ellos).
+    canales = {c: v for c, v in canales.items() if c == "intensidad" or c in columnas}
+
+    mediciones = None
+    if str(args.calibracion).lower().endswith(".json"):
+        calibracion = Calibracion.cargar_json(args.calibracion)
+        if list(calibracion.columnas) != columnas:
+            print(f"La calibración tiene columnas {calibracion.columnas}; la modalidad "
+                  f"'{modalidad}' necesita {columnas}.", file=sys.stderr)
+            return 2
+        if args.estrategia == "knn":
+            print("Con una calibración .json usá --estrategia centroide o gmm (knn necesita "
+                  "las mediciones individuales en CSV).", file=sys.stderr)
+            return 2
+    else:
+        df_cal = pd.read_csv(args.calibracion)
+        faltan = [c for c in [*columnas, "polimero"] if c not in df_cal.columns]
+        if faltan:
+            print(f"El CSV de calibración no tiene las columnas {faltan}.", file=sys.stderr)
+            return 2
+        calibracion = Calibracion.desde_dataframe(df_cal, columnas=columnas)
+        if args.estrategia in ("knn", "gmm"):
+            mediciones = (df_cal[columnas].to_numpy(), df_cal["polimero"].to_numpy())
 
     resultado = analizar_muestra(
         canales, calibracion,
@@ -119,6 +147,16 @@ def _classify(args: argparse.Namespace) -> int:
     salida = Path(args.salida)
     rutas = generar_reporte(resultado, salida, canales=canales,
                             titulo=Path(args.muestra).stem)
+    if not args.sin_informe:
+        from .informe_html import generar_informe_html
+
+        rutas["informe"] = generar_informe_html(
+            resultado, canales, salida / "informe.html",
+            nombre_muestra=args.nombre or Path(args.muestra).stem, archivo=args.muestra,
+            escala_um_px=args.escala_um_px, exportar_pdf=not args.sin_pdf,
+        )
+        if (salida / "informe.pdf").exists():
+            rutas["informe_pdf"] = salida / "informe.pdf"
 
     print(f"{resultado.n_rois} ROIs clasificadas (modalidad {modalidad}).")
     for etiqueta, n in resultado.conteo_por_polimero().items():

@@ -1,6 +1,7 @@
 """Tests de :mod:`napari_mp_classifier.metricas`."""
 
 import numpy as np
+import pytest
 
 from napari_mp_classifier import NO_CLASIFICABLE
 from napari_mp_classifier.metricas import evaluar_clasificacion
@@ -43,3 +44,23 @@ def test_resumen_es_texto():
     texto = evaluar_clasificacion(y, y).resumen()
     assert "exactitud" in texto
     assert "Matriz de confusión" in texto
+
+
+def test_exactitud_balanceada_no_se_infla_con_clase_mayoritaria():
+    y = np.array(["PET"] * 90 + ["PS"] * 10)
+    p = np.array(["PET"] * 100)
+    rep = evaluar_clasificacion(y, p)
+    assert rep.exactitud == pytest.approx(0.9)
+    assert rep.exactitud_balanceada == pytest.approx(0.5)
+
+
+def test_emparejar_rois_es_uno_a_uno():
+    from napari_mp_classifier.metricas import emparejar_rois
+
+    verdad = np.zeros((10, 20), dtype=int)
+    verdad[2:8, 2:9] = 1
+    verdad[2:8, 11:18] = 2
+    pred = np.zeros_like(verdad)
+    pred[2:8, 2:18] = 1  # una sola ROI predicha cubre las dos partículas
+    emp = emparejar_rois(pred, verdad, iou_min=0.3)
+    assert len(emp) == 1  # antes: las dos verdaderas apuntaban a la misma predicha

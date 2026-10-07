@@ -44,9 +44,10 @@ def fusionar_por_roi(
 ) -> pd.DataFrame:
     """Empareja ROIs de dos segmentaciones registradas y fusiona sus phasores.
 
-    Cada ROI de ``features_flim`` se empareja con la ROI de ``features_esp`` de centroide
-    más cercano, si la distancia es menor a ``tol_centro_px``. Las ROIs sin pareja se
-    descartan (no hay información de las dos modalidades).
+    El emparejamiento es óptimo y uno a uno (algoritmo húngaro sobre la distancia entre
+    centroides): minimiza la distancia total, de modo que el resultado no depende del orden
+    de las filas. Solo se aceptan pares a menos de ``tol_centro_px``. Las ROIs sin pareja
+    se descartan (no hay información de las dos modalidades).
 
     Parameters
     ----------
@@ -77,26 +78,24 @@ def fusionar_por_roi(
     _exigir_columnas(features_flim, ["g_flim", "s_flim", "centro_fila", "centro_col"], "features_flim")
     _exigir_columnas(features_esp, ["g_esp", "s_esp", "centro_fila", "centro_col"], "features_esp")
 
+    from scipy.optimize import linear_sum_assignment
+
+    if features_flim.empty or features_esp.empty:
+        return pd.DataFrame()
+    centros_flim = features_flim[["centro_fila", "centro_col"]].to_numpy(dtype=float)
     centros_esp = features_esp[["centro_fila", "centro_col"]].to_numpy(dtype=float)
-    usados: set[int] = set()
+    distancias = np.linalg.norm(centros_flim[:, None, :] - centros_esp[None, :, :], axis=2)
+    costo = np.where(distancias <= tol_centro_px, distancias, 1e9)
+    idx_flim, idx_esp = linear_sum_assignment(costo)
+
     filas: list[dict] = []
-
-    for label_flim, fila_flim in features_flim.iterrows():
-        centro = fila_flim[["centro_fila", "centro_col"]].to_numpy(dtype=float)
-        distancias = np.linalg.norm(centros_esp - centro, axis=1)
-        for idx in np.argsort(distancias):
-            if idx in usados:
-                continue
-            if distancias[idx] > tol_centro_px:
-                break
-            fila_esp = features_esp.iloc[idx]
-            usados.add(int(idx))
-            filas.append(
-                _fila_fusionada(label_flim, fila_flim, fila_esp, features_esp.index[idx],
-                                float(distancias[idx]), sufijos)
-            )
-            break
-
+    for i, j in sorted(zip(idx_flim, idx_esp)):
+        if distancias[i, j] > tol_centro_px:
+            continue
+        filas.append(_fila_fusionada(
+            features_flim.index[i], features_flim.iloc[i], features_esp.iloc[j],
+            features_esp.index[j], float(distancias[i, j]), sufijos,
+        ))
     return pd.DataFrame(filas)
 
 

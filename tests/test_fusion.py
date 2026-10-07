@@ -73,3 +73,15 @@ def test_fusionar_por_decision_score_alto_rechaza():
 def test_fusionar_por_decision_longitudes_distintas():
     with pytest.raises(ValueError, match="longitud"):
         fusionar_por_decision(["PET"], ["PET", "PS"])
+
+
+def test_fusionar_por_roi_emparejamiento_optimo():
+    # Voraz: la primera ROI FLIM se quedaba con la espectral más cercana y dejaba a la
+    # segunda sin pareja. El emparejamiento óptimo empareja ambas.
+    flim = pd.DataFrame({"g_flim": [0.1, 0.2], "s_flim": [0.4, 0.4],
+                         "centro_fila": [0.0, 0.0], "centro_col": [0.0, 6.0]}, index=[1, 2])
+    esp = pd.DataFrame({"g_esp": [0.3, 0.5], "s_esp": [0.4, 0.4],
+                        "centro_fila": [0.0, 0.0], "centro_col": [3.0, -3.5]}, index=[7, 8])
+    fus = fusionar_por_roi(flim, esp, tol_centro_px=4.0)
+    assert len(fus) == 2
+    assert dict(zip(fus["label_flim"], fus["label_esp"])) == {1: 8, 2: 7}

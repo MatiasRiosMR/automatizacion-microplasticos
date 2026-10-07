@@ -59,3 +59,27 @@ def test_centroides_cercanos_a_los_teoricos():
     teoricos = centroides_referencia("flim")
     for etiqueta, centro in cal.centroides.items():
         assert np.allclose(centro, teoricos[etiqueta], atol=0.01)
+
+
+def test_ida_y_vuelta_json(tmp_path):
+    df = generar_calibracion("fusion", n_por_polimero=20, semilla=1)
+    from datos_sinteticos import _columnas
+
+    cal = Calibracion.desde_dataframe(df, columnas=_columnas("fusion"),
+                                      metadatos={"equipo": "LSM 880", "frecuencia_mhz": 59.96})
+    ruta = tmp_path / "cal.json"
+    cal.guardar_json(ruta)
+    rec = Calibracion.cargar_json(ruta)
+    assert rec.columnas == cal.columnas
+    assert rec.n_muestras == cal.n_muestras
+    assert rec.metadatos["equipo"] == "LSM 880"
+    for e in cal.etiquetas:
+        assert np.allclose(rec.centroides[e], cal.centroides[e])
+        assert np.allclose(rec.covarianzas[e], cal.covarianzas[e])
+
+
+def test_cargar_json_ajeno_falla(tmp_path):
+    ruta = tmp_path / "otro.json"
+    ruta.write_text('{"hola": 1}')
+    with pytest.raises(ValueError, match="no es una calibración"):
+        Calibracion.cargar_json(ruta)

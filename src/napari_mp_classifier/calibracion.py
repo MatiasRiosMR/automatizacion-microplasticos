@@ -12,11 +12,19 @@ Fuentes de datos admitidas
 1. ``DataFrame`` de coordenadas ya calculadas (una fila por medición).
 2. CSV de coordenadas de phasor (formato compatible con ``napari-phasors``).
 3. Imágenes crudas ``.sdt`` / ``.czi`` (se delega el cálculo en ``phasorpy`` a través de
-   :mod:`napari_mp_classifier.io_crudo`; se implementa cuando el equipo entregue datos).
+   :mod:`napari_mp_classifier.io_crudo`).
+
+Persistencia
+------------
+:meth:`Calibracion.guardar_json` / :meth:`Calibracion.cargar_json` guardan y recuperan la
+calibración **completa** (centroides, covarianzas, número de mediciones y metadatos de
+adquisición). :meth:`Calibracion.guardar_csv` escribe solo un resumen legible de los
+centroides y no alcanza para volver a clasificar.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -179,5 +187,63 @@ class Calibracion:
         return pd.DataFrame(filas)
 
     def guardar_csv(self, ruta: str | Path) -> None:
-        """Guarda los centroides de la calibración en un CSV legible."""
+        """Guarda los centroides de la calibración en un CSV legible (solo resumen)."""
         self.a_dataframe().to_csv(ruta, index=False)
+
+    def guardar_json(self, ruta: str | Path) -> None:
+        """Guarda la calibración completa en JSON (recuperable con :meth:`cargar_json`).
+
+        Incluye centroides, covarianzas, número de mediciones por polímero, nombres de
+        columnas y metadatos de adquisición.
+
+        Parameters
+        ----------
+        ruta : str or pathlib.Path
+            Archivo de destino.
+        """
+        datos = {
+            "formato": "napari-mp-classifier/calibracion",
+            "version": 1,
+            "columnas": list(self.columnas),
+            "polimeros": {
+                e: {
+                    "centroide": np.asarray(self.centroides[e], dtype=float).tolist(),
+                    "covarianza": np.asarray(self.covarianzas[e], dtype=float).tolist(),
+                    "n_muestras": int(self.n_muestras.get(e, 0)),
+                }
+                for e in self.etiquetas
+            },
+            "metadatos": self.metadatos,
+        }
+        Path(ruta).write_text(json.dumps(datos, indent=2, ensure_ascii=False, default=str),
+                              encoding="utf-8")
+
+    @classmethod
+    def cargar_json(cls, ruta: str | Path) -> Calibracion:
+        """Carga una calibración guardada con :meth:`guardar_json`.
+
+        Parameters
+        ----------
+        ruta : str or pathlib.Path
+            Archivo JSON.
+
+        Returns
+        -------
+        Calibracion
+
+        Raises
+        ------
+        ValueError
+            Si el archivo no tiene el formato esperado.
+        """
+        datos = json.loads(Path(ruta).read_text(encoding="utf-8"))
+        if datos.get("formato") != "napari-mp-classifier/calibracion":
+            raise ValueError(f"{ruta} no es una calibración de napari-mp-classifier.")
+        pol = datos["polimeros"]
+        return cls(
+            centroides={e: np.asarray(v["centroide"], dtype=float) for e, v in pol.items()},
+            covarianzas={e: np.asarray(v["covarianza"], dtype=float) for e, v in pol.items()},
+            columnas=list(datos["columnas"]),
+            n_muestras={e: int(v["n_muestras"]) for e, v in pol.items()},
+            metadatos=datos.get("metadatos", {}),
+        )

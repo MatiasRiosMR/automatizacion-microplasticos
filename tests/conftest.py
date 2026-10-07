@@ -1,5 +1,6 @@
 """Configuración de pytest: hace importable el paquete y el módulo de datos sintéticos."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -7,6 +8,7 @@ import matplotlib
 import pytest
 
 matplotlib.use("Agg")  # figuras sin ventana en los tests
+os.environ.setdefault("NAPARI_MP_SIN_PDF", "1")  # los tests no lanzan Chrome para el PDF
 
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / "src"))
