@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/img/banner_institucional.png" alt="Facultad de Ingeniería (UNER) · IBB (UNER–CONICET) · CONICET" width="760">
+<img src="docs/img/banner_institucional.png" alt="Facultad de Ingeniería, Universidad Nacional de Entre Ríos" width="380">
 
 # Napari-MP 1.0
 
@@ -298,9 +298,9 @@ src/napari_mp_classifier/
 
 ## Licencia
 
-Código bajo licencia MIT. Los logos institucionales de `docs/img/` pertenecen a sus
-respectivas instituciones y se incluyen solo para identificar la pertenencia del proyecto;
-la licencia del código no los alcanza. Fuentes en
+Código bajo licencia MIT. El logo de la Facultad de Ingeniería (UNER) de `docs/img/`
+pertenece a la institución y se incluye solo para identificar la pertenencia del proyecto;
+la licencia del código no lo alcanza. Fuente en
 [`docs/img/logos/FUENTES.md`](docs/img/logos/FUENTES.md).
 
 <div align="center">
